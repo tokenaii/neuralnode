@@ -1,0 +1,95 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "neuralnode"
+version = "0.1.0"
+description = "A next-generation Python framework for building, running, and managing LLMs and AI Agents"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+keywords = ["llm", "ai", "agent", "framework", "openai", "anthropic", "ollama", "langchain-alternative"]
+authors = [
+    { name = "NeuralNode Team" }
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "pydantic>=2.0.0",
+    "typing-extensions>=4.5.0",
+    "aiohttp>=3.8.0",
+    "requests>=2.28.0",
+    "tenacity>=8.2.0",
+]
+
+[project.optional-dependencies]
+openai = ["openai>=1.0.0"]
+anthropic = ["anthropic>=0.18.0"]
+google = ["google-generativeai>=0.3.0"]
+ollama = ["ollama>=0.1.0"]
+huggingface = ["transformers>=4.35.0", "torch>=2.0.0", "accelerate>=0.24.0"]
+local = ["llama-cpp-python>=0.2.0", "transformers>=4.35.0", "torch>=2.0.0"]
+rag = ["numpy>=1.24.0", "faiss-cpu>=1.7.0", "pypdf>=3.17.0", "beautifulsoup4>=4.12.0"]
+browser = ["selenium>=4.15.0", "playwright>=1.40.0"]
+all = [
+    "openai>=1.0.0",
+    "anthropic>=0.18.0",
+    "google-generativeai>=0.3.0",
+    "ollama>=0.1.0",
+    "transformers>=4.35.0",
+    "torch>=2.0.0",
+    "accelerate>=0.24.0",
+    "llama-cpp-python>=0.2.0",
+    "numpy>=1.24.0",
+    "faiss-cpu>=1.7.0",
+    "pypdf>=3.17.0",
+    "beautifulsoup4>=4.12.0",
+    "selenium>=4.15.0",
+    "playwright>=1.40.0",
+]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.7.0",
+    "pre-commit>=3.5.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/neuralnode/neuralnode"
+Documentation = "https://neuralnode.readthedocs.io"
+Repository = "https://github.com/neuralnode/neuralnode"
+Issues = "https://github.com/neuralnode/neuralnode/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/neuralnode"]
+
+[tool.black]
+line-length = 100
+target-version = ['py39', 'py310', 'py311', 'py312']
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+select = ["E", "F", "I", "W", "N", "UP", "B", "C4", "SIM"]
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
