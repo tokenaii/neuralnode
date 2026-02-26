@@ -20,7 +20,11 @@ class ConversationMemory:
         self._metadata: Dict[str, Any] = {}
 
     def add(self, message: Message) -> None:
-        """Add a message to memory."""
+        """Add a message to memory.
+        
+        Args:
+            message: Message object to add
+        """
         self._messages.append(message)
         
         # Trim if exceeds max
@@ -34,6 +38,17 @@ class ConversationMemory:
             other_messages = other_messages[-keep_count:]
             
             self._messages = system_messages + other_messages
+
+    def add_message(self, role: MessageRole, content: str, **kwargs) -> None:
+        """Add a message using role and content (convenience method).
+        
+        Args:
+            role: Message role (user, assistant, system)
+            content: Message content
+            **kwargs: Additional message parameters
+        """
+        message = Message(role=role, content=content, **kwargs)
+        self.add(message)
 
     def get_messages(self, limit: Optional[int] = None) -> List[Message]:
         """

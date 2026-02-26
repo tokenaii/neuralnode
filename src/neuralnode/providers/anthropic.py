@@ -2,8 +2,6 @@
 
 from typing import Any, AsyncIterator, Dict, Iterator, List, Optional, Union
 
-from anthropic import Anthropic, AsyncAnthropic
-
 from ..core.types import (
     BaseProvider,
     LLMResponse,
@@ -26,8 +24,13 @@ class AnthropicProvider(BaseProvider):
         **kwargs: Any,
     ):
         super().__init__(model=model, **kwargs)
-        self.client = Anthropic(api_key=api_key)
-        self.async_client = AsyncAnthropic(api_key=api_key)
+        # Lazy import
+        try:
+            from anthropic import Anthropic, AsyncAnthropic
+            self.client = Anthropic(api_key=api_key)
+            self.async_client = AsyncAnthropic(api_key=api_key)
+        except ImportError:
+            raise ImportError("anthropic package not installed. Install with: pip install anthropic")
         self.provider_type = ProviderType.ANTHROPIC
 
     def _convert_messages(self, messages: List[Message]) -> tuple[str, List[Dict[str, Any]]]:
@@ -246,16 +249,46 @@ class AnthropicProvider(BaseProvider):
         texts: Union[str, List[str]],
         **kwargs: Any,
     ) -> List[List[float]]:
-        """Anthropic doesn't provide embeddings API yet."""
-        raise NotImplementedError("Anthropic doesn't provide embeddings API")
+        """Generate embeddings using a default embeddings model.
+        
+        Anthropic doesn't provide embeddings API yet, so we use
+        sentence-transformers as a fallback for compatibility.
+        """
+        try:
+            from sentence_transformers import SentenceTransformer
+            
+            # Use a lightweight model for embeddings
+            model = SentenceTransformer('all-MiniLM-L6-v2')
+            
+            if isinstance(texts, str):
+                texts = [texts]
+            
+            embeddings = model.encode(texts, convert_to_list=True)
+            return embeddings if isinstance(embeddings, list) else embeddings.tolist()
+            
+        except ImportError:
+            # Fallback: return zero embeddings with warning
+            import warnings
+            warnings.warn(
+                "sentence-transformers not installed. "
+                "Install with: pip install sentence-transformers "
+                "or use a different provider for embeddings."
+            )
+            # Return dummy embeddings (768 dimensions for compatibility)
+            if isinstance(texts, str):
+                return [[0.0] * 768]
+            return [[0.0] * 768 for _ in texts]
 
     async def aembed(
         self,
         texts: Union[str, List[str]],
         **kwargs: Any,
     ) -> List[List[float]]:
-        """Anthropic doesn't provide embeddings API yet."""
-        raise NotImplementedError("Anthropic doesn't provide embeddings API")
+        """Async embeddings using default model."""
+        # Run sync embed in thread pool
+        import asyncio
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, self.embed, texts)
 
     @property
     def supports_tools(self) -> bool:

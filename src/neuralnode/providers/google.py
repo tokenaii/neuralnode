@@ -2,8 +2,6 @@
 
 from typing import Any, AsyncIterator, Dict, Iterator, List, Optional, Union
 
-import google.generativeai as genai
-
 from ..core.types import (
     BaseProvider,
     LLMResponse,
@@ -26,8 +24,13 @@ class GoogleProvider(BaseProvider):
         **kwargs: Any,
     ):
         super().__init__(model=model, **kwargs)
-        genai.configure(api_key=api_key)
-        self.client = genai.GenerativeModel(model)
+        # Lazy import
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=api_key)
+            self.client = genai.GenerativeModel(model)
+        except ImportError:
+            raise ImportError("google-generativeai not installed. Install with: pip install google-generativeai")
         self.provider_type = ProviderType.GOOGLE
 
     def _convert_messages(self, messages: List[Message]) -> tuple[str, str]:

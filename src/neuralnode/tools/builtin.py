@@ -4,8 +4,10 @@ from typing import Any, Dict, List, Optional
 import json
 import requests
 
+from . import Tool
 
-class WebSearch:
+
+class WebSearch(Tool):
     """Web search tool using various search APIs."""
 
     def __init__(
@@ -13,20 +15,23 @@ class WebSearch:
         api_key: Optional[str] = None,
         search_engine: str = "duckduckgo",
     ):
+        super().__init__(
+            name="web_search",
+            description="Search the web for information",
+            parameters={
+                "query": {"type": "string", "description": "Search query"},
+                "num_results": {"type": "integer", "description": "Number of results"}
+            }
+        )
         self.api_key = api_key
         self.search_engine = search_engine
 
+    def execute(self, query: str, num_results: int = 5) -> List[Dict[str, str]]:
+        """Execute web search."""
+        return self.search(query, num_results)
+
     def search(self, query: str, num_results: int = 5) -> List[Dict[str, str]]:
-        """
-        Perform web search.
-        
-        Args:
-            query: Search query
-            num_results: Number of results to return
-            
-        Returns:
-            List of search results
-        """
+        """Perform web search."""
         if self.search_engine == "duckduckgo":
             return self._search_duckduckgo(query, num_results)
         elif self.search_engine == "serpapi":
@@ -171,8 +176,21 @@ class BrowserTools:
         self.close()
 
 
-class Calculator:
+class Calculator(Tool):
     """Calculator tool for mathematical operations."""
+
+    def __init__(self):
+        super().__init__(
+            name="calculator",
+            description="Calculate mathematical expressions",
+            parameters={
+                "expression": {"type": "string", "description": "Math expression like '2 + 2 * 3'"}
+            }
+        )
+
+    def execute(self, expression: str) -> str:
+        """Execute calculation."""
+        return self.calculate(expression)
 
     def calculate(self, expression: str) -> str:
         """

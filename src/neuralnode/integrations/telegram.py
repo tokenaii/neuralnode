@@ -19,6 +19,11 @@ try:
 except ImportError:
     TELEGRAM_AVAILABLE = False
     print("python-telegram-bot not installed. Install with: pip install python-telegram-bot")
+    Update = Any
+    Application = Any
+    class _MockContextTypes:
+        DEFAULT_TYPE = Any
+    ContextTypes = _MockContextTypes
 
 
 @dataclass

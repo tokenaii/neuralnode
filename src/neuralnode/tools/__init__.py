@@ -1,6 +1,45 @@
 """Tools module for NeuralNode."""
 
-from .builtin import Calculator, WebSearch, CodeRunner
+from typing import Dict, Any, List, Optional, Callable
+from abc import ABC, abstractmethod
+
+
+class Tool(ABC):
+    """Base class for all tools."""
+    
+    def __init__(
+        self,
+        name: str,
+        description: str,
+        parameters: Optional[Dict[str, Any]] = None
+    ):
+        self.name = name
+        self.description = description
+        self.parameters = parameters or {}
+    
+    @abstractmethod
+    def execute(self, **kwargs) -> Any:
+        """Execute the tool with given parameters."""
+        pass
+    
+    def to_definition(self) -> Dict[str, Any]:
+        """Convert tool to function definition format."""
+        return {
+            "type": "function",
+            "function": {
+                "name": self.name,
+                "description": self.description,
+                "parameters": {
+                    "type": "object",
+                    "properties": self.parameters,
+                    "required": list(self.parameters.keys())
+                }
+            }
+        }
+
+
+# Other imports
+from .builtin import Calculator, WebSearch, CodeRunner, get_default_tools
 from .browser_automation import BrowserController, BrowserTools
 from .web_search import WebSearch, search, search_with_answer
 from .system_control import (
@@ -54,6 +93,8 @@ from .universal_tools import (
 )
 
 __all__ = [
+    # Base
+    "Tool",
     # Built-in
     "WebSearch",
     "BrowserTools",

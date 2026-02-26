@@ -1,8 +1,12 @@
 """Calendar integration for Google and Outlook calendars."""
 
-from typing import List, Optional, Dict, Any
+import logging
+from typing import List, Optional, Dict, Any, Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from abc import ABC, abstractmethod
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -20,9 +24,10 @@ class CalendarEvent:
     recurrence: Optional[str] = None
 
 
-class BaseCalendarClient:
-    """Base class for calendar clients."""
+class BaseCalendarClient(ABC):
+    """Abstract base class for calendar clients."""
     
+    @abstractmethod
     def list_events(
         self,
         start_date: Optional[datetime] = None,
@@ -30,19 +35,22 @@ class BaseCalendarClient:
         limit: int = 10,
     ) -> List[CalendarEvent]:
         """List calendar events."""
-        raise NotImplementedError
+        pass
     
+    @abstractmethod
     def create_event(self, event: CalendarEvent) -> Optional[str]:
         """Create a new calendar event."""
-        raise NotImplementedError
+        pass
     
+    @abstractmethod
     def update_event(self, event_id: str, event: CalendarEvent) -> bool:
         """Update an existing event."""
-        raise NotImplementedError
+        pass
     
+    @abstractmethod
     def delete_event(self, event_id: str) -> bool:
         """Delete an event."""
-        raise NotImplementedError
+        pass
     
     def find_free_slots(
         self,
@@ -50,8 +58,37 @@ class BaseCalendarClient:
         end_date: datetime,
         duration_minutes: int = 60,
     ) -> List[datetime]:
-        """Find available time slots."""
-        raise NotImplementedError
+        """Find available time slots - default implementation."""
+        try:
+            events = self.list_events(start_date, end_date, limit=100)
+            
+            # Sort events by start time
+            events.sort(key=lambda e: e.start_time)
+            
+            free_slots = []
+            current_time = start_date
+            
+            for event in events:
+                # Check if there's a gap before this event
+                gap = (event.start_time - current_time).total_seconds() / 60
+                if gap >= duration_minutes:
+                    free_slots.append(current_time)
+                    if len(free_slots) >= 5:  # Return up to 5 slots
+                        break
+                
+                # Move current time to after this event
+                current_time = max(current_time, event.end_time)
+            
+            # Check for slot after last event
+            gap = (end_date - current_time).total_seconds() / 60
+            if gap >= duration_minutes and len(free_slots) < 5:
+                free_slots.append(current_time)
+            
+            return free_slots
+            
+        except Exception as e:
+            logger.error(f"Error finding free slots: {e}")
+            return []
 
 
 class GoogleCalendarClient(BaseCalendarClient):

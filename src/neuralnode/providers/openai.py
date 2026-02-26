@@ -2,8 +2,6 @@
 
 from typing import Any, AsyncIterator, Dict, Iterator, List, Optional, Union
 
-from openai import AsyncOpenAI, OpenAI
-
 from ..core.types import (
     BaseProvider,
     LLMResponse,
@@ -27,8 +25,13 @@ class OpenAIProvider(BaseProvider):
         **kwargs: Any,
     ):
         super().__init__(model=model, **kwargs)
-        self.client = OpenAI(api_key=api_key, base_url=base_url)
-        self.async_client = AsyncOpenAI(api_key=api_key, base_url=base_url)
+        # Lazy import - only when instantiated
+        try:
+            from openai import AsyncOpenAI, OpenAI
+            self.client = OpenAI(api_key=api_key, base_url=base_url)
+            self.async_client = AsyncOpenAI(api_key=api_key, base_url=base_url)
+        except ImportError:
+            raise ImportError("openai package not installed. Install with: pip install openai")
         self.provider_type = ProviderType.OPENAI
 
     def _convert_messages(self, messages: List[Message]) -> List[Dict[str, Any]]:

@@ -9,6 +9,9 @@ from dataclasses import dataclass
 from urllib.error import HTTPError
 import ssl
 
+# Import Tool base class
+from ..tools import Tool
+
 
 @dataclass
 class SearchResult:
@@ -161,7 +164,7 @@ class SerpAPISearch:
             return []
 
 
-class WebSearch:
+class WebSearch(Tool):
     """Unified web search with fallback options."""
     
     def __init__(
@@ -170,6 +173,14 @@ class WebSearch:
         bing_api_key: Optional[str] = None,
         serpapi_key: Optional[str] = None,
     ):
+        super().__init__(
+            name="web_search",
+            description="Search the web for information",
+            parameters={
+                "query": {"type": "string", "description": "Search query"},
+                "num_results": {"type": "integer", "description": "Number of results"}
+            }
+        )
         self.engines: List[Any] = []
         
         if duckduckgo:
@@ -180,6 +191,15 @@ class WebSearch:
         
         if serpapi_key:
             self.engines.append(SerpAPISearch(serpapi_key))
+    
+    def execute(self, query: str, num_results: int = 10) -> str:
+        """Execute web search."""
+        results = self.search(query, num_results)
+        return json.dumps([{
+            "title": r.title,
+            "url": r.url,
+            "snippet": r.snippet
+        } for r in results], ensure_ascii=False, indent=2)
     
     def search(self, query: str, num_results: int = 10) -> List[SearchResult]:
         """Search using available engines."""

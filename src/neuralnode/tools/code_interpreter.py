@@ -66,48 +66,9 @@ class CodeInterpreter:
         if context:
             self.globals_dict.update(context)
         
-        # Execute with timeout
-        try:
-            with self._timeout_context(self.timeout):
-                # Capture stdout and stderr
-                with contextlib.redirect_stdout(output_buffer), \
-                     contextlib.redirect_stderr(error_buffer):
-                    
-                    exec(code, self.globals_dict)
-                
-                output = output_buffer.getvalue()
-                error_output = error_buffer.getvalue()
-                
-                # Truncate if too long
-                if len(output) > self.max_output_size:
-                    output = output[:self.max_output_size] + "\n... (truncated)"
-                
-                result = CodeResult(
-                    success=True,
-                    output=output,
-                    error=error_output if error_output else None,
-                    variables=self._extract_variables(),
-                    execution_time=time.time() - start_time,
-                )
-        
-        except TimeoutError:
-            result = CodeResult(
-                success=False,
-                output=output_buffer.getvalue(),
-                error=f"Code execution timed out after {self.timeout} seconds",
-                execution_time=time.time() - start_time,
-            )
-        
-        except Exception as e:
-            result = CodeResult(
-                success=False,
-                output=output_buffer.getvalue(),
-                error=f"{type(e).__name__}: {str(e)}\n{traceback.format_exc()}",
-                execution_time=time.time() - start_time,
-            )
-        
-        self.execution_history.append(result)
-        return result
+        # SECURITY: Use subprocess-based execution instead of exec()
+        # The exec() function is dangerous and can be bypassed
+        return self._execute_in_subprocess(code, context, start_time, output_buffer)
     
     def _security_check(self, code: str) -> Dict[str, Any]:
         """Check code for security violations."""
@@ -148,8 +109,75 @@ class CodeInterpreter:
         
         return TimeoutContext()
     
+    def _execute_in_subprocess(
+        self,
+        code: str,
+        context: Optional[Dict[str, Any]],
+        start_time: float,
+        output_buffer
+    ) -> CodeResult:
+        """Execute code in isolated subprocess for security."""
+        # Create temporary file with security restrictions
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+            # Add security header
+            f.write("""
+# Security restrictions
+import sys
+blocked_modules = ['os', 'subprocess', 'socket', 'ctypes', 'mmap', 'shutil']
+for mod in blocked_modules:
+    sys.modules[mod] = None
+""")
+            # Write context
+            if context:
+                f.write("\n# Context\n")
+                for name, value in context.items():
+                    try:
+                        f.write(f"{name} = {repr(value)}\n")
+                    except Exception:
+                        pass
+            # Write user code
+            f.write("\n# User code\n")
+            f.write(code)
+            temp_path = f.name
+        
+        try:
+            result = subprocess.run(
+                [sys.executable, '-I', '-B', temp_path],
+                capture_output=True,
+                text=True,
+                timeout=self.timeout,
+            )
+            output = result.stdout
+            if len(output) > self.max_output_size:
+                output = output[:self.max_output_size] + "\n... (truncated)"
+            
+            code_result = CodeResult(
+                success=result.returncode == 0,
+                output=output,
+                error=result.stderr if result.stderr else None,
+                variables={},
+                execution_time=time.time() - start_time,
+            )
+            self.execution_history.append(code_result)
+            return code_result
+        
+        except subprocess.TimeoutExpired:
+            code_result = CodeResult(
+                success=False,
+                output="",
+                error=f"Timeout after {self.timeout}s",
+                execution_time=time.time() - start_time,
+            )
+            self.execution_history.append(code_result)
+            return code_result
+        
+        finally:
+            try:
+                os.unlink(temp_path)
+            except Exception:
+                pass
+    
     def _extract_variables(self) -> Dict[str, Any]:
-        """Extract user-defined variables."""
         # Filter out built-ins and modules
         excluded = set(dir(__builtins__)) if hasattr(__builtins__, '__iter__') else set()
         excluded.update(['__builtins__', '__doc__', '__file__', '__name__', '__package__'])

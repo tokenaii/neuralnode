@@ -112,9 +112,17 @@ class StaticAnalyzer:
         
         for match in import_pattern:
             module = match[0] or match[1]
-            # Check if module is used
+            # Check if module is used in the code (basic check)
             if module and module not in code.split('import')[1]:
-                pass  # Would need more sophisticated analysis
+                issues.append(CodeIssue(
+                    line_number=1,
+                    column=0,
+                    issue_type="unused_import",
+                    severity="warning",
+                    message=f"Import '{module}' may be unused",
+                    suggestion=f"Remove unused import: {module}",
+                    auto_fixable=False,
+                ))
         
         return issues
     
@@ -126,8 +134,15 @@ class StaticAnalyzer:
         undefined = re.findall(r'NameError.*\'(\w+)\'', traceback.format_exc())
         
         for var in undefined:
-            # Would need AST analysis for accurate detection
-            pass
+            issues.append(CodeIssue(
+                line_number=1,
+                column=0,
+                issue_type="undefined_variable",
+                severity="error",
+                message=f"Variable '{var}' is undefined",
+                suggestion=f"Define variable '{var}' before using it",
+                auto_fixable=False,
+            ))
         
         return issues
 

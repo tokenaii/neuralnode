@@ -4,25 +4,32 @@ build-backend = "hatchling.build"
 
 [project]
 name = "neuralnode"
-version = "0.1.0"
-description = "A next-generation Python framework for building, running, and managing LLMs and AI Agents"
+version = "1.0.4"
+description = "A comprehensive Python framework for building AI agents with support for both cloud-based LLM APIs and local models"
 readme = "README.md"
-requires-python = ">=3.9"
-license = "MIT"
-keywords = ["llm", "ai", "agent", "framework", "openai", "anthropic", "ollama", "langchain-alternative"]
+requires-python = ">=3.8"
+license = {text = "MIT"}
+keywords = ["llm", "ai", "agent", "framework", "openai", "anthropic", "ollama", "langchain-alternative", "rag", "vector-search"]
 authors = [
-    { name = "NeuralNode Team" }
+    {name = "Assem Sabry", email = "assemsabryy@outlook.com"}
+]
+maintainers = [
+    {name = "Assem Sabry", email = "assemsabryy@outlook.com"}
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules"
 ]
 dependencies = [
     "pydantic>=2.0.0",
@@ -35,16 +42,23 @@ dependencies = [
 [project.optional-dependencies]
 openai = ["openai>=1.0.0"]
 anthropic = ["anthropic>=0.18.0"]
-google = ["google-generativeai>=0.3.0"]
+google = ["google-generativeai>=0.3.0", "google-auth>=2.22.0", "google-auth-oauthlib>=1.0.0", "google-api-python-client>=2.95.0"]
 ollama = ["ollama>=0.1.0"]
 huggingface = ["transformers>=4.35.0", "torch>=2.0.0", "accelerate>=0.24.0"]
 local = ["llama-cpp-python>=0.2.0", "transformers>=4.35.0", "torch>=2.0.0"]
 rag = ["numpy>=1.24.0", "faiss-cpu>=1.7.0", "pypdf>=3.17.0", "beautifulsoup4>=4.12.0"]
 browser = ["selenium>=4.15.0", "playwright>=1.40.0"]
+email = ["google-auth>=2.22.0", "google-auth-oauthlib>=1.0.0", "google-api-python-client>=2.95.0", "msal>=1.24.0"]
+docker = ["docker>=6.1.0"]
+ray = ["ray>=2.8.0"]
 all = [
     "openai>=1.0.0",
     "anthropic>=0.18.0",
     "google-generativeai>=0.3.0",
+    "google-auth>=2.22.0",
+    "google-auth-oauthlib>=1.0.0",
+    "google-api-python-client>=2.95.0",
+    "msal>=1.24.0",
     "ollama>=0.1.0",
     "transformers>=4.35.0",
     "torch>=2.0.0",
@@ -56,6 +70,8 @@ all = [
     "beautifulsoup4>=4.12.0",
     "selenium>=4.15.0",
     "playwright>=1.40.0",
+    "docker>=6.1.0",
+    "ray>=2.8.0",
 ]
 dev = [
     "pytest>=7.4.0",
@@ -67,10 +83,11 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/neuralnode/neuralnode"
+Homepage = "https://assem.cloud/"
 Documentation = "https://neuralnode.readthedocs.io"
-Repository = "https://github.com/neuralnode/neuralnode"
-Issues = "https://github.com/neuralnode/neuralnode/issues"
+Repository = "https://github.com/assemsabry/neuralnode"
+Issues = "https://github.com/assemsabry/neuralnode/issues"
+Changelog = "https://github.com/assemsabry/neuralnode/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/neuralnode"]

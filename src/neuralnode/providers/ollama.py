@@ -2,9 +2,6 @@
 
 from typing import Any, AsyncIterator, Dict, Iterator, List, Optional, Union
 
-import requests
-import aiohttp
-
 from ..core.types import (
     BaseProvider,
     LLMResponse,
@@ -78,6 +75,7 @@ class OllamaProvider(BaseProvider):
             payload["system"] = system_prompt
         
         if stream:
+            import requests
             response = requests.post(
                 f"{self.base_url}/api/generate",
                 json=payload,
@@ -85,6 +83,7 @@ class OllamaProvider(BaseProvider):
             )
             return self._handle_streaming(response)
         
+        import requests
         response = requests.post(
             f"{self.base_url}/api/generate",
             json=payload,
@@ -166,6 +165,7 @@ class OllamaProvider(BaseProvider):
         if stream:
             return self._handle_async_streaming(payload)
         
+        import aiohttp
         async with aiohttp.ClientSession() as session:
             async with session.post(
                 f"{self.base_url}/api/generate",
@@ -191,6 +191,7 @@ class OllamaProvider(BaseProvider):
     async def _handle_async_streaming(self, payload: Dict[str, Any]) -> AsyncIterator[StreamingChunk]:
         """Handle async streaming response."""
         import json
+        import aiohttp
         
         async with aiohttp.ClientSession() as session:
             async with session.post(
@@ -249,6 +250,8 @@ class OllamaProvider(BaseProvider):
         **kwargs: Any,
     ) -> List[List[float]]:
         """Generate embeddings using Ollama."""
+        import requests
+        
         if isinstance(texts, str):
             texts = [texts]
         

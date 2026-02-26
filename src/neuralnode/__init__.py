@@ -59,7 +59,7 @@ from .utils.monitoring import NeuralMonitor, trace
 from .utils.smart_cache import SmartCache, cached
 from .training.finetune import FineTuner, RLHFTrainer
 
-__version__ = "0.1.0"
+__version__ = "1.0.4"
 __all__ = [
     # Core
     "NeuralNode",

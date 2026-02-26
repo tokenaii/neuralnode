@@ -193,8 +193,8 @@ class NeuralMonitor:
         for callback in self.callbacks:
             try:
                 callback("trace_start", run)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Callback error during trace_start: {e}")
         
         return run.id
     
@@ -216,8 +216,8 @@ class NeuralMonitor:
             for callback in self.callbacks:
                 try:
                     callback("trace_end", run)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(f"Callback error during trace_end: {e}")
     
     def record_metric(self, run_id: str, name: str, value: float) -> None:
         """Record a metric for a run."""
