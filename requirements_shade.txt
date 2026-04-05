@@ -1,0 +1,40 @@
+# Requirements for Shade AI Bot
+# Install with: pip install -r requirements_shade.txt
+
+# NeuralNode (local path)
+-e D:/Work Space/NeuralNode/neuralnode
+
+# Core ML
+torch>=2.0.0
+transformers>=4.35.0
+accelerate>=0.24.0
+sentencepiece
+protobuf
+
+# Telegram
+python-telegram-bot>=20.0
+
+# Vector Stores (optional)
+chromadb>=0.4.0
+faiss-cpu>=1.7.4
+
+# Document Processing
+pypdf>=3.17.0
+python-docx>=0.8.11
+openpyxl>=3.1.0
+
+# Web & API
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+serpapi>=0.1.0
+
+# Databases
+sqlalchemy>=2.0.0
+pymongo>=4.6.0
+redis>=5.0.0
+
+# Utilities
+python-dotenv>=1.0.0
+psutil>=5.9.0
+tiktoken>=0.5.0
+numpy>=1.24.0

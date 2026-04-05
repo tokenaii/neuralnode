@@ -1,475 +1,601 @@
-"""Telegram bot integration for NeuralNode AI agents."""
+"""Telegram Bot Integration for NeuralNode.
+
+Connect an agent to Telegram using a BotFather token, with support for:
+- text conversations
+- voice message transcription
+- optional voice replies through Replica TTS
+- document ingestion and analysis
+"""
+
+from __future__ import annotations
 
 import asyncio
-from typing import Optional, Callable, Dict, Any, List
-from dataclasses import dataclass
 import json
+import os
+import re
+import tempfile
+from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+from ..agents import _strip_thinking
+from ..core import BaseAgent, ensure_llm_response
+from ..rag import load_documents
 
 try:
-    from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-    from telegram.ext import (
-        Application,
-        CommandHandler,
-        MessageHandler,
-        CallbackQueryHandler,
-        ContextTypes,
-        filters,
-    )
+    from telegram import Update
+    from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
+
     TELEGRAM_AVAILABLE = True
 except ImportError:
     TELEGRAM_AVAILABLE = False
-    print("python-telegram-bot not installed. Install with: pip install python-telegram-bot")
-    Update = Any
-    Application = Any
-    class _MockContextTypes:
-        DEFAULT_TYPE = Any
-    ContextTypes = _MockContextTypes
 
 
 @dataclass
-class TelegramUser:
-    """Telegram user info."""
-    id: int
+class TelegramSession:
+    """User session in Telegram bot."""
+
+    user_id: int
     username: Optional[str]
     first_name: str
-    last_name: Optional[str]
-    is_authorized: bool = False
+    chat_history: List[Dict[str, Any]] = field(default_factory=list)
+    created_at: datetime = field(default_factory=datetime.now)
+    last_activity: datetime = field(default_factory=datetime.now)
+    authorized: bool = True
+    context: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class TelegramBotConfig:
+    """Configuration for Telegram bot."""
+
+    token: str
+    allowed_users: Optional[List[int]] = None
+    admin_users: List[int] = field(default_factory=list)
+    max_message_length: int = 4096
+    enable_voice: bool = True
+    enable_documents: bool = True
+    response_timeout: int = 60
+    show_typing: bool = True
+    persistence_path: Optional[str] = None
+    reply_mode: str = "text"
+    voice_input_language: str = "en-US"
+    voice_reply: bool = False
+    voice_reply_voice_id: str = "replic-aria-language{en-us}"
+    documents_use_rag: bool = True
+    document_chunk_limit: int = 6
+    max_document_chars: int = 16000
+    download_dir: Optional[str] = None
 
 
 class TelegramBot:
-    """Telegram bot for NeuralNode AI agent."""
-    
+    """Telegram Bot integration for NeuralNode agents."""
+
     def __init__(
         self,
         token: str,
-        llm=None,
-        agent=None,
-        authorized_users: Optional[List[int]] = None,
+        agent: BaseAgent,
+        config: Optional[TelegramBotConfig] = None,
+        system_prompt: Optional[str] = None,
     ):
         if not TELEGRAM_AVAILABLE:
-            raise RuntimeError("python-telegram-bot not installed")
-        
+            raise ImportError(
+                "python-telegram-bot required. Install with: pip install python-telegram-bot"
+            )
+
         self.token = token
-        self.llm = llm
         self.agent = agent
-        self.authorized_users = set(authorized_users or [])
+        self.config = config or TelegramBotConfig(token=token)
+        self.system_prompt = system_prompt or "You are a helpful AI assistant on Telegram."
+
+        self.sessions: Dict[int, TelegramSession] = {}
         self.application: Optional[Application] = None
-        self.user_sessions: Dict[int, Dict[str, Any]] = {}
-        self.message_handlers: List[Callable] = []
-    
-    def add_authorized_user(self, user_id: int) -> None:
-        """Add authorized user."""
-        self.authorized_users.add(user_id)
-    
-    def remove_authorized_user(self, user_id: int) -> None:
-        """Remove authorized user."""
-        self.authorized_users.discard(user_id)
-    
-    def is_authorized(self, user_id: int) -> bool:
-        """Check if user is authorized."""
-        if not self.authorized_users:
-            # If no authorized users list, allow all
-            return True
-        return user_id in self.authorized_users
-    
-    def _get_user_info(self, update: Update) -> TelegramUser:
-        """Extract user info from update."""
-        user = update.effective_user
-        return TelegramUser(
-            id=user.id,
-            username=user.username,
-            first_name=user.first_name,
-            last_name=user.last_name,
-            is_authorized=self.is_authorized(user.id),
-        )
-    
-    async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle /start command."""
-        user = self._get_user_info(update)
-        
-        if not user.is_authorized:
-            await update.message.reply_text(
-                "⚠️ You are not authorized to use this bot.\n"
-                f"Your user ID: {user.id}"
+        self._running = False
+
+        if self.config.persistence_path:
+            self._load_sessions()
+
+    def _load_sessions(self):
+        path = Path(self.config.persistence_path)
+        if not path.exists():
+            return
+
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            for user_id, session_data in data.items():
+                self.sessions[int(user_id)] = TelegramSession(
+                    user_id=int(user_id),
+                    username=session_data.get("username"),
+                    first_name=session_data.get("first_name", "Unknown"),
+                    chat_history=session_data.get("chat_history", []),
+                    authorized=session_data.get("authorized", True),
+                )
+        except Exception as exc:
+            print(f"Error loading sessions: {exc}")
+
+    def _save_sessions(self):
+        if not self.config.persistence_path:
+            return
+
+        try:
+            data = {}
+            for user_id, session in self.sessions.items():
+                data[str(user_id)] = {
+                    "username": session.username,
+                    "first_name": session.first_name,
+                    "chat_history": session.chat_history[-50:],
+                    "authorized": session.authorized,
+                }
+
+            path = Path(self.config.persistence_path)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        except Exception as exc:
+            print(f"Error saving sessions: {exc}")
+
+    def _get_download_dir(self) -> Path:
+        target = Path(self.config.download_dir or (Path(tempfile.gettempdir()) / "neuralnode_telegram"))
+        target.mkdir(parents=True, exist_ok=True)
+        return target
+
+    async def _download_telegram_file(self, file_id: str, filename: str) -> Path:
+        telegram_file = await self.application.bot.get_file(file_id)
+        target = self._get_download_dir() / filename
+        await telegram_file.download_to_drive(custom_path=str(target))
+        return target
+
+    def _get_or_create_session(self, user) -> TelegramSession:
+        user_id = user.id
+        if user_id not in self.sessions:
+            authorized = True
+            if self.config.allowed_users:
+                authorized = user_id in self.config.allowed_users
+            self.sessions[user_id] = TelegramSession(
+                user_id=user_id,
+                username=user.username,
+                first_name=user.first_name or "User",
+                authorized=authorized,
             )
-            return
-        
-        welcome_text = f"""
-🧠 Welcome to NeuralNode AI Bot, {user.first_name}!
 
-Commands:
-/chat <message> - Chat with AI
-/agent <task> - Use AI agent with tools
-/clear - Clear conversation history
-/models - List available models
-/help - Show help
+        session = self.sessions[user_id]
+        session.last_activity = datetime.now()
+        return session
 
-You can also send voice messages for speech-to-text.
-        """
-        await update.message.reply_text(welcome_text)
-    
-    async def help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle /help command."""
-        help_text = """
-🧠 NeuralNode Bot Commands:
+    def _build_chat_context(self, session: TelegramSession) -> str:
+        if not session.chat_history:
+            return ""
+        recent = session.chat_history[-20:]
+        parts = []
+        for msg in recent:
+            role = msg.get("role", "unknown")
+            content = str(msg.get("content", ""))
+            if len(content) > 500:
+                content = content[:500] + "..."
+            parts.append(f"{role}: {content}")
+        return "\n".join(parts)
 
-/chat <message> - Have a conversation with AI
-/agent <task> - Delegate a task to the AI agent
-/clear - Clear your conversation history
-/models - List available AI models
-/status - Check bot status
-/help - Show this help message
+    def _build_user_task(self, session: TelegramSession, user_message: str) -> str:
+        chat_context = self._build_chat_context(session)
+        if chat_context:
+            return f"Previous context:\n{chat_context}\n\nUser message: {user_message}"
+        return user_message
 
-Features:
-• Text conversations
-• Voice message support
-• File uploads
-• Web search capability
-• System control (authorized users only)
-        """
-        await update.message.reply_text(help_text)
-    
-    async def chat_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle /chat command."""
-        user = self._get_user_info(update)
-        
-        if not user.is_authorized:
-            await update.message.reply_text("⛔ Unauthorized")
-            return
-        
-        # Get message text after /chat
-        message_text = update.message.text
-        if message_text.startswith('/chat'):
-            query = message_text[5:].strip()
+    def _run_agent(self, task: str) -> str:
+        response = self.agent.run(task)
+        if hasattr(response, "output"):
+            response = response.output
         else:
-            query = message_text
-        
-        if not query:
-            await update.message.reply_text("Please provide a message. Example: /chat Hello!")
-            return
-        
-        # Send "typing" indicator
-        await context.bot.send_chat_action(
-            chat_id=update.effective_chat.id,
-            action="typing"
+            try:
+                response = ensure_llm_response(response).content
+            except Exception:
+                pass
+
+        text = _strip_thinking(str(response))
+        text = re.sub(r"Thought:.*?\n", "", text, flags=re.IGNORECASE | re.DOTALL)
+        text = re.sub(r"REASONING:.*?\n", "", text, flags=re.IGNORECASE | re.DOTALL)
+        return text.strip()
+
+    def _record_exchange(self, session: TelegramSession, user_message: str, response: str):
+        session.chat_history.append(
+            {
+                "role": "user",
+                "content": user_message,
+                "timestamp": datetime.now().isoformat(),
+            }
         )
-        
-        try:
-            if self.llm:
-                # Get or create session
-                session = self.user_sessions.get(user.id, {})
-                
-                # Get response
-                response = self.llm.chat(query)
-                text = response.text if hasattr(response, 'text') else str(response)
-                
-                # Update session
-                if 'history' not in session:
-                    session['history'] = []
-                session['history'].append({"user": query, "ai": text})
-                self.user_sessions[user.id] = session
-                
-                # Send response (split if too long)
-                if len(text) > 4096:
-                    # Telegram message limit
-                    for i in range(0, len(text), 4096):
-                        await update.message.reply_text(text[i:i+4096])
-                else:
-                    await update.message.reply_text(text)
-            else:
-                await update.message.reply_text("❌ LLM not configured")
-        except Exception as e:
-            await update.message.reply_text(f"❌ Error: {str(e)}")
-    
-    async def agent_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle /agent command."""
-        user = self._get_user_info(update)
-        
-        if not user.is_authorized:
-            await update.message.reply_text("⛔ Unauthorized")
-            return
-        
-        # Get task
-        message_text = update.message.text
-        if message_text.startswith('/agent'):
-            task = message_text[6:].strip()
-        else:
-            task = message_text
-        
-        if not task:
-            await update.message.reply_text("Please provide a task. Example: /agent Search for Python tutorials")
-            return
-        
-        await context.bot.send_chat_action(
-            chat_id=update.effective_chat.id,
-            action="typing"
+        session.chat_history.append(
+            {
+                "role": "assistant",
+                "content": response,
+                "timestamp": datetime.now().isoformat(),
+            }
         )
-        
-        try:
-            if self.agent:
-                # Run agent
-                await update.message.reply_text(f"🤖 Working on: {task}")
-                
-                result = self.agent.run(task)
-                
-                # Send result
-                if len(result) > 4096:
-                    for i in range(0, len(result), 4096):
-                        await update.message.reply_text(result[i:i+4096])
-                else:
-                    await update.message.reply_text(f"✅ Result:\n{result}")
-            else:
-                await update.message.reply_text("❌ Agent not configured")
-        except Exception as e:
-            await update.message.reply_text(f"❌ Error: {str(e)}")
-    
-    async def clear_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle /clear command."""
-        user = self._get_user_info(update)
-        
-        if user.id in self.user_sessions:
-            self.user_sessions[user.id] = {}
-        
-        await update.message.reply_text("🗑️ Conversation history cleared!")
-    
-    async def models_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle /models command."""
-        try:
-            from ..local.quantization import ModelQuantizer
-            
-            quantizer = ModelQuantizer()
-            models = quantizer.list_available_models()
-            
-            text = "📦 Available Models:\n\n"
-            for m in models[:10]:  # Limit to 10
-                text += f"• {m['name']}\n"
-                text += f"  Size: {m['size_gb']} GB | License: {m['license']}\n\n"
-            
+        if len(session.chat_history) > 100:
+            session.chat_history = session.chat_history[-100:]
+        self._save_sessions()
+
+    def _normalized_reply_mode(self) -> str:
+        # Backward compatibility: old `voice_reply=True` means both text + voice.
+        if self.config.voice_reply and self.config.reply_mode == "text":
+            return "both"
+        mode = (self.config.reply_mode or "text").strip().lower()
+        if mode not in {"text", "voice", "both"}:
+            return "text"
+        return mode
+
+    async def _send_long_message(self, update: Update, text: str):
+        max_length = self.config.max_message_length
+        if len(text) <= max_length:
             await update.message.reply_text(text)
-        except Exception as e:
-            await update.message.reply_text(f"Error listing models: {e}")
-    
-    async def status_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle /status command."""
-        try:
-            from ..local.hardware import HardwareDetector
-            
-            hw = HardwareDetector()
-            
-            status_text = f"""
-🖥️ System Status:
-
-GPU: {'✅ Available' if hw.has_cuda else '❌ Not available'}
-VRAM: {hw.vram_gb:.1f} GB
-RAM: {hw.ram_gb:.1f} GB
-CPU Cores: {hw.cpu_count}
-
-Bot Status:
-Authorized Users: {len(self.authorized_users) if self.authorized_users else 'All users'}
-Active Sessions: {len(self.user_sessions)}
-LLM: {'✅ Connected' if self.llm else '❌ Not connected'}
-Agent: {'✅ Connected' if self.agent else '❌ Not connected'}
-            """
-            await update.message.reply_text(status_text)
-        except Exception as e:
-            await update.message.reply_text(f"Error getting status: {e}")
-    
-    async def handle_voice(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle voice messages."""
-        user = self._get_user_info(update)
-        
-        if not user.is_authorized:
-            await update.message.reply_text("⛔ Unauthorized")
             return
-        
-        await update.message.reply_text("🎤 Processing voice message...")
-        
+
+        chunks = []
+        while text:
+            if len(text) <= max_length:
+                chunks.append(text)
+                break
+            split_at = text.rfind("\n", 0, max_length)
+            if split_at == -1:
+                split_at = max_length
+            chunks.append(text[:split_at])
+            text = text[split_at:].strip()
+
+        for index, chunk in enumerate(chunks, 1):
+            header = f"Part {index}/{len(chunks)}:\n" if len(chunks) > 1 else ""
+            await update.message.reply_text(header + chunk)
+
+    async def _send_voice_reply(self, update: Update, text: str):
         try:
-            # Download voice file
-            voice_file = await context.bot.get_file(update.message.voice.file_id)
-            
-            # Save to temp file
-            import tempfile
-            with tempfile.NamedTemporaryFile(suffix=".ogg", delete=False) as f:
-                await voice_file.download_to_drive(f.name)
-                voice_path = f.name
-            
-            # Transcribe
+            from ..replica import ReplicaTTS
+        except ImportError:
+            return
+
+        output_path = self._get_download_dir() / (
+            f"telegram_reply_{update.effective_user.id}_{int(datetime.now().timestamp())}.mp3"
+        )
+        tts = ReplicaTTS(voice_id=self.config.voice_reply_voice_id)
+        tts.save_to_file(text, str(output_path))
+        with open(output_path, "rb") as audio_file:
+            await update.message.reply_voice(voice=audio_file)
+
+    async def _send_response(self, update: Update, response: str):
+        mode = self._normalized_reply_mode()
+        if mode in {"text", "both"}:
+            await self._send_long_message(update, response)
+        if mode in {"voice", "both"}:
             try:
-                from ..tools.multimodal import SpeechToText
-                stt = SpeechToText()
-                text = stt.transcribe(voice_path)
-                
-                await update.message.reply_text(f"📝 Transcription: {text}")
-                
-                # Process with AI
-                if self.llm:
-                    response = self.llm.chat(text)
-                    await update.message.reply_text(response.text)
-                
-            finally:
-                import os
-                os.unlink(voice_path)
-        
-        except Exception as e:
-            await update.message.reply_text(f"❌ Voice processing error: {str(e)}")
-    
-    async def handle_document(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle document uploads."""
-        user = self._get_user_info(update)
-        
-        if not user.is_authorized:
-            await update.message.reply_text("⛔ Unauthorized")
-            return
-        
+                await self._send_voice_reply(update, response)
+            except Exception as exc:
+                # If voice-only mode fails, fall back to text so the user still gets a reply.
+                await update.message.reply_text(f"Voice reply failed: {exc}")
+                if mode == "voice":
+                    await self._send_long_message(update, response)
+
+    def _convert_audio_for_transcription(self, path: Path) -> Path:
+        if path.suffix.lower() in {".wav", ".aiff", ".aif", ".flac", ".mp3"}:
+            return path
+
         try:
-            doc = update.message.document
-            file = await context.bot.get_file(doc.file_id)
-            
-            # Download
-            import tempfile
-            temp_dir = tempfile.mkdtemp()
-            file_path = f"{temp_dir}/{doc.file_name}"
-            await file.download_to_drive(file_path)
-            
+            from pydub import AudioSegment
+        except ImportError as exc:
+            raise ImportError(
+                "pydub is required for Telegram voice transcription. Install with: pip install pydub"
+            ) from exc
+
+        converted_path = path.with_suffix(".mp3")
+        audio = AudioSegment.from_file(str(path))
+        audio.export(str(converted_path), format="mp3")
+        return converted_path
+
+    def _extract_document_text(self, file_path: Path) -> str:
+        docs = load_documents([file_path])
+        if not docs:
+            raise ValueError(f"No readable content extracted from {file_path.name}")
+
+        text = "\n\n".join(doc.content for doc in docs if doc.content.strip())
+        if not text.strip():
+            raise ValueError(f"Document {file_path.name} did not contain readable text")
+        return text[: self.config.max_document_chars]
+
+    async def _start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        session = self._get_or_create_session(update.effective_user)
+        if not session.authorized:
             await update.message.reply_text(
-                f"📄 Received: {doc.file_name}\n"
-                f"Size: {doc.file_size} bytes\n"
-                f"Processing..."
+                "You are not authorized to use this bot. Contact the bot administrator for access."
             )
-            
-            # Read file
-            try:
-                from ..tools.system_control import read_file
-                content = read_file(file_path, limit=5000)
-                
-                # Summarize with AI
-                if self.llm and len(content) > 100:
-                    prompt = f"Summarize this document:\n\n{content[:3000]}"
-                    response = self.llm.chat(prompt)
-                    await update.message.reply_text(f"📋 Summary:\n{response.text}")
-                else:
-                    await update.message.reply_text(f"📄 Content:\n{content[:1000]}")
-            
-            finally:
-                import shutil
-                shutil.rmtree(temp_dir)
-        
-        except Exception as e:
-            await update.message.reply_text(f"❌ Document processing error: {str(e)}")
-    
-    async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle regular text messages."""
-        user = self._get_user_info(update)
-        
-        if not user.is_authorized:
             return
-        
-        # Treat as chat command
-        await self.chat_command(update, context)
-    
-    def setup_handlers(self) -> None:
-        """Setup bot handlers."""
-        self.application = Application.builder().token(self.token).build()
-        
-        # Commands
-        self.application.add_handler(CommandHandler("start", self.start_command))
-        self.application.add_handler(CommandHandler("help", self.help_command))
-        self.application.add_handler(CommandHandler("chat", self.chat_command))
-        self.application.add_handler(CommandHandler("agent", self.agent_command))
-        self.application.add_handler(CommandHandler("clear", self.clear_command))
-        self.application.add_handler(CommandHandler("models", self.models_command))
-        self.application.add_handler(CommandHandler("status", self.status_command))
-        
-        # Media handlers
-        self.application.add_handler(MessageHandler(filters.VOICE, self.handle_voice))
-        self.application.add_handler(MessageHandler(filters.Document.ALL, self.handle_document))
-        
-        # Text messages (fallback)
-        self.application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message))
-    
-    def run(self) -> None:
-        """Start the bot."""
-        if not self.application:
-            self.setup_handlers()
-        
-        print("🤖 Telegram Bot starting...")
-        print("Press Ctrl+C to stop")
-        
-        self.application.run_polling(allowed_updates=Update.ALL_TYPES)
-    
-    async def run_async(self) -> None:
-        """Async version for running alongside other tasks."""
-        if not self.application:
-            self.setup_handlers()
-        
-        await self.application.initialize()
-        await self.application.start()
-        await self.application.updater.start_polling()
 
+        await update.message.reply_text(
+            (
+                f"Hello {session.first_name}!\n\n"
+                "I'm an AI assistant powered by NeuralNode.\n\n"
+                "Commands:\n"
+                "/help - Show help\n"
+                "/clear - Clear chat history\n"
+                "/status - Show bot status\n"
+                "/about - About this bot"
+            )
+        )
 
-class TelegramAuth:
-    """Authentication manager for Telegram users."""
-    
-    def __init__(self, auth_file: Optional[str] = None):
-        self.auth_file = auth_file or "telegram_auth.json"
-        self.authorized_users: Dict[int, Dict[str, Any]] = {}
-        self._load()
-    
-    def _load(self) -> None:
-        """Load authorized users from file."""
+    async def _help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        await update.message.reply_text(
+            (
+                "Help - Available Commands:\n\n"
+                "/start - Start the bot\n"
+                "/help - Show this help message\n"
+                "/clear - Clear your conversation history\n"
+                "/status - Check bot status\n"
+                "/about - About this bot\n\n"
+                "Send a document to analyze it.\n"
+                "Send a voice message to transcribe it.\n"
+                "Send normal text to chat with the model."
+            )
+        )
+
+    async def _clear_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        user = update.effective_user
+        if user.id in self.sessions:
+            self.sessions[user.id].chat_history.clear()
+            self._save_sessions()
+        await update.message.reply_text("Conversation history cleared.")
+
+    async def _status_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        session = self._get_or_create_session(update.effective_user)
+        await update.message.reply_text(
+            (
+                "Bot Status:\n\n"
+                f"Name: {session.first_name}\n"
+                f"ID: {session.user_id}\n"
+                f"Messages: {len(session.chat_history)}\n"
+                f"Agent Type: {type(self.agent).__name__}\n"
+                f"Voice enabled: {self.config.enable_voice}\n"
+                f"Documents enabled: {self.config.enable_documents}\n"
+                f"Reply mode: {self._normalized_reply_mode()}\n"
+                f"Last activity: {session.last_activity.strftime('%Y-%m-%d %H:%M:%S')}"
+            )
+        )
+
+    async def _about_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        await update.message.reply_text(
+            (
+                "About This Bot\n\n"
+                "Powered by NeuralNode.\n"
+                "Supports chat, document analysis, and optional voice workflows."
+            )
+        )
+
+    async def _handle_text_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        user = update.effective_user
+        session = self._get_or_create_session(user)
+        if not session.authorized:
+            await update.message.reply_text("You are not authorized to use this bot.")
+            return
+
+        user_message = update.message.text
+        if self.config.show_typing:
+            await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+
         try:
-            with open(self.auth_file, 'r') as f:
-                data = json.load(f)
-                self.authorized_users = {int(k): v for k, v in data.items()}
-        except FileNotFoundError:
-            pass
-    
-    def _save(self) -> None:
-        """Save authorized users to file."""
-        with open(self.auth_file, 'w') as f:
-            json.dump(self.authorized_users, f, indent=2)
-    
-    def add_user(self, user_id: int, username: Optional[str] = None, role: str = "user") -> None:
-        """Add authorized user."""
-        self.authorized_users[user_id] = {
-            "username": username,
-            "role": role,
-            "added_at": asyncio.get_event_loop().time(),
-        }
-        self._save()
-    
-    def remove_user(self, user_id: int) -> None:
-        """Remove authorized user."""
-        if user_id in self.authorized_users:
-            del self.authorized_users[user_id]
-            self._save()
-    
-    def is_authorized(self, user_id: int) -> bool:
-        """Check if user is authorized."""
-        return user_id in self.authorized_users
-    
-    def get_user_role(self, user_id: int) -> Optional[str]:
-        """Get user role."""
-        user = self.authorized_users.get(user_id)
-        return user.get("role") if user else None
-    
-    def list_users(self) -> Dict[int, Dict[str, Any]]:
-        """List all authorized users."""
-        return self.authorized_users.copy()
+            task = self._build_user_task(session, user_message)
+            response = self._run_agent(task)
+            self._record_exchange(session, user_message, response)
+            await self._send_response(update, response)
+        except Exception as exc:
+            await update.message.reply_text(f"Error processing your message: {str(exc)[:200]}")
+
+    async def _handle_voice_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not self.config.enable_voice:
+            await update.message.reply_text("Voice messages are disabled.")
+            return
+
+        user = update.effective_user
+        session = self._get_or_create_session(user)
+        if not session.authorized:
+            await update.message.reply_text("You are not authorized to use this bot.")
+            return
+
+        try:
+            from ..speech import NeuralSpeech
+        except ImportError:
+            await update.message.reply_text(
+                "Speech recognition dependencies are missing. Install SpeechRecognition and pydub."
+            )
+            return
+
+        if self.config.show_typing:
+            await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+
+        voice = update.message.voice
+        file_name = f"voice_{user.id}_{voice.file_unique_id}.ogg"
+
+        try:
+            downloaded = await self._download_telegram_file(voice.file_id, file_name)
+            transcribable = self._convert_audio_for_transcription(downloaded)
+            speech = NeuralSpeech(language=self.config.voice_input_language)
+            transcript = speech.transcribe(
+                str(transcribable),
+                language=self.config.voice_input_language,
+            )
+
+            task = self._build_user_task(session, transcript)
+            response = self._run_agent(task)
+            self._record_exchange(session, transcript, response)
+
+            await update.message.reply_text(f"Transcript: {transcript}")
+            await self._send_response(update, response)
+        except Exception as exc:
+            await update.message.reply_text(f"Voice transcription failed: {str(exc)[:300]}")
+
+    async def _handle_document(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not self.config.enable_documents:
+            await update.message.reply_text("Document handling is disabled.")
+            return
+
+        user = update.effective_user
+        session = self._get_or_create_session(user)
+        if not session.authorized:
+            await update.message.reply_text("You are not authorized to use this bot.")
+            return
+
+        if self.config.show_typing:
+            await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+
+        document = update.message.document
+        safe_name = document.file_name or f"document_{document.file_unique_id}"
+        try:
+            downloaded = await self._download_telegram_file(document.file_id, safe_name)
+            extracted_text = self._extract_document_text(downloaded)
+
+            task = (
+                f"Analyze the uploaded document `{safe_name}`.\n\n"
+                f"Document content:\n{extracted_text}\n\n"
+                "Provide a concise summary, key points, risks, and actionable insights."
+            )
+            response = self._run_agent(task)
+            self._record_exchange(session, f"[Document upload] {safe_name}", response)
+
+            header = f"Document received: {safe_name}\nSize: {document.file_size / 1024:.1f} KB\n\n"
+            await self._send_response(update, header + response)
+        except Exception as exc:
+            await update.message.reply_text(f"Document analysis failed: {str(exc)[:300]}")
+
+    def _setup_handlers(self):
+        self.application.add_handler(CommandHandler("start", self._start_command))
+        self.application.add_handler(CommandHandler("help", self._help_command))
+        self.application.add_handler(CommandHandler("clear", self._clear_command))
+        self.application.add_handler(CommandHandler("status", self._status_command))
+        self.application.add_handler(CommandHandler("about", self._about_command))
+        self.application.add_handler(
+            MessageHandler(filters.TEXT & ~filters.COMMAND, self._handle_text_message)
+        )
+        if self.config.enable_voice:
+            self.application.add_handler(MessageHandler(filters.VOICE, self._handle_voice_message))
+        if self.config.enable_documents:
+            self.application.add_handler(MessageHandler(filters.Document.ALL, self._handle_document))
+        self.application.add_error_handler(self._handle_error)
+
+    async def _handle_error(self, update: object, context: ContextTypes.DEFAULT_TYPE):
+        print(f"Telegram bot error: {context.error}")
+
+    def start(self, poll_interval: float = 1.0):
+        if self._running:
+            print("Bot is already running.")
+            return
+
+        self.application = Application.builder().token(self.token).build()
+        self._setup_handlers()
+        self._running = True
+        self.application.run_polling(poll_interval=poll_interval)
+
+    def start_async(self) -> asyncio.Task:
+        if self._running:
+            return None
+        self._running = True
+
+        async def run_bot():
+            self.application = Application.builder().token(self.token).build()
+            self._setup_handlers()
+            await self.application.initialize()
+            await self.application.start()
+            await self.application.updater.start_polling()
+
+        return asyncio.create_task(run_bot())
+
+    def stop(self):
+        if not self._running:
+            return
+        self._running = False
+        if self.application:
+            asyncio.create_task(self.application.stop())
+        self._save_sessions()
+
+    def send_message(self, user_id: int, message: str) -> bool:
+        if not self.application:
+            return False
+
+        async def send():
+            try:
+                await self.application.bot.send_message(
+                    chat_id=user_id,
+                    text=message[: self.config.max_message_length],
+                )
+                return True
+            except Exception:
+                return False
+
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        return loop.run_until_complete(send())
+
+    def broadcast_message(self, message: str) -> Dict[int, bool]:
+        results = {}
+        for user_id, session in self.sessions.items():
+            if session.authorized:
+                results[user_id] = self.send_message(user_id, message)
+        return results
 
 
-# Convenience function
-def create_bot(
+class TelegramBotBuilder:
+    """Builder for creating Telegram bots with agents."""
+
+    def __init__(self):
+        self.token: Optional[str] = None
+        self.agent: Optional[BaseAgent] = None
+        self.config = TelegramBotConfig(token="")
+        self.system_prompt: Optional[str] = None
+
+    def with_token(self, token: str) -> "TelegramBotBuilder":
+        self.token = token
+        self.config.token = token
+        return self
+
+    def with_token_from_env(self, env_var: str = "TELEGRAM_BOT_TOKEN") -> "TelegramBotBuilder":
+        self.token = os.getenv(env_var)
+        if not self.token:
+            raise ValueError(f"Environment variable {env_var} not set")
+        self.config.token = self.token
+        return self
+
+    def with_agent(self, agent: BaseAgent) -> "TelegramBotBuilder":
+        self.agent = agent
+        return self
+
+    def allow_users(self, user_ids: List[int]) -> "TelegramBotBuilder":
+        self.config.allowed_users = user_ids
+        return self
+
+    def with_persistence(self, path: str) -> "TelegramBotBuilder":
+        self.config.persistence_path = path
+        return self
+
+    def with_system_prompt(self, prompt: str) -> "TelegramBotBuilder":
+        self.system_prompt = prompt
+        return self
+
+    def build(self) -> TelegramBot:
+        if not self.token:
+            raise ValueError("Bot token required. Get one from @BotFather")
+        if not self.agent:
+            raise ValueError("Agent required")
+        return TelegramBot(
+            token=self.token,
+            agent=self.agent,
+            config=self.config,
+            system_prompt=self.system_prompt,
+        )
+
+
+def create_telegram_bot(
     token: str,
-    llm=None,
-    agent=None,
-    authorized_users: Optional[List[int]] = None,
+    agent: BaseAgent,
+    allowed_users: Optional[List[int]] = None,
 ) -> TelegramBot:
-    """Create and configure a Telegram bot."""
-    return TelegramBot(
-        token=token,
-        llm=llm,
-        agent=agent,
-        authorized_users=authorized_users,
-    )
+    config = TelegramBotConfig(token=token, allowed_users=allowed_users)
+    return TelegramBot(token=token, agent=agent, config=config)
+
+
+TelegramAgent = TelegramBot

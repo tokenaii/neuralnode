@@ -1,104 +1,55 @@
-"""Tools module for NeuralNode."""
+"""Central tools registry for NeuralNode."""
 
-from typing import Dict, Any, List, Optional, Callable
-from abc import ABC, abstractmethod
+from .web import WebSearchTool
+from .system.operations import DateTimeTool, SystemOperationsTool
+from .advanced import PythonREPLTool, FileReadTool, FileWriteTool
 
+# Aliases for compatibility with main __init__.py
+FileReaderTool = FileReadTool
+FileWriterTool = FileWriteTool
 
-class Tool(ABC):
-    """Base class for all tools."""
+# ── Simple Calculator Tool ───────────────────────────────────────────────────
+from ..core import BaseTool, ToolResult, ParameterSpec
+import math
+
+class CalculatorTool(BaseTool):
+    """Perform mathematical calculations."""
     
-    def __init__(
-        self,
-        name: str,
-        description: str,
-        parameters: Optional[Dict[str, Any]] = None
-    ):
-        self.name = name
-        self.description = description
-        self.parameters = parameters or {}
+    name = "calculator"
+    description = "Perform mathematical calculations and evaluate expressions."
+    parameters = {
+        "expression": ParameterSpec(
+            type="string",
+            description="The math expression to evaluate (e.g., '2 + 2', 'math.sqrt(16)', 'math.pi * 5^2')",
+            required=True
+        )
+    }
     
-    @abstractmethod
-    def execute(self, **kwargs) -> Any:
-        """Execute the tool with given parameters."""
-        pass
-    
-    def to_definition(self) -> Dict[str, Any]:
-        """Convert tool to function definition format."""
-        return {
-            "type": "function",
-            "function": {
-                "name": self.name,
-                "description": self.description,
-                "parameters": {
-                    "type": "object",
-                    "properties": self.parameters,
-                    "required": list(self.parameters.keys())
-                }
+    def execute(self, expression: str) -> ToolResult:
+        try:
+            # Basic sanitization
+            expr = expression.replace('^', '**')
+            # Safe evaluation with math module
+            allowed_names = {
+                k: getattr(math, k) for k in dir(math) if not k.startswith("_")
             }
-        }
+            allowed_names["abs"] = abs
+            allowed_names["round"] = round
+            allowed_names["min"] = min
+            allowed_names["max"] = max
+            
+            result = eval(expr, {"__builtins__": {}}, allowed_names)
+            return ToolResult.ok(str(result), value=result)
+        except Exception as e:
+            return ToolResult.error(f"Calculation failed: {str(e)}")
 
-
-# Other imports
-from .builtin import Calculator, WebSearch, CodeRunner, get_default_tools
-from .browser_automation import BrowserController, BrowserTools
-from .web_search import WebSearch, search, search_with_answer
-from .system_control import (
-    SystemController,
-    FileManager,
-    ProcessManager,
-    CommandRunner,
-    SystemInfo,
-)
-from .multimodal import (
-    SpeechToText,
-    TextToSpeech,
-    VisionProcessor,
-    MultiModalChat,
-    transcribe_audio,
-    speak_text,
-    describe_image,
-)
-from .file_watcher import FileWatcher, watch_directory
-from .email_tool import (
-    EmailClient,
-    GmailClient,
-    OutlookClient,
-    EmailTool,
-    send_email,
-    send_gmail,
-)
-from .calendar_integration import (
-    CalendarEvent,
-    GoogleCalendarClient,
-    OutlookCalendarClient,
-    CalendarTool,
-    list_google_calendar_events,
-    create_google_calendar_event,
-)
-from .code_interpreter import (
-    CodeInterpreter,
-    SandboxedInterpreter,
-    JupyterStyleInterpreter,
-    CodeResult,
-    execute_python,
-    execute_safely,
-)
-from .universal_tools import (
-    ThinkingTool,
-    VerifiedSearchTool,
-    ChainOfThoughtTool,
-    think_before_answer,
-    search_verified,
-    chain_of_thought,
-)
 
 __all__ = [
-    # Base
-    "Tool",
-    # Built-in
-    "WebSearch",
-    "BrowserTools",
-    "Calculator",
-    "CodeRunner",
-    "get_default_tools",
+    "WebSearchTool",
+    "FileReaderTool",
+    "FileWriterTool",
+    "CalculatorTool",
+    "PythonREPLTool",
+    "DateTimeTool",
+    "SystemOperationsTool",
 ]

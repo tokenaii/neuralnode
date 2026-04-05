@@ -1,5 +1,8 @@
 # NeuralNode Ecosystem Documentation
 
+> Historical planning note: this file is an ecosystem roadmap snapshot, not the current public API reference.
+> For the current shipped API, use `README.md`, `docs/documentation.md`, and `docs/telegram_guide.md`.
+
 This document addresses the 5 areas where LangChain currently leads and how NeuralNode is catching up.
 
 ---
