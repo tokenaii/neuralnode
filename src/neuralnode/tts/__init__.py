@@ -21,6 +21,8 @@ import logging
 from typing import Optional, List, Dict, Any
 from pathlib import Path
 
+from ..utils.dependencies import ensure_feature_dependencies
+
 logger = logging.getLogger(__name__)
 
 
@@ -127,6 +129,7 @@ class NeuralTTS:
         rate: str = "+0%",
         volume: str = "+0%",
         pitch: str = "+0Hz",
+        auto_install_deps: bool = True,
     ):
         """
         Args:
@@ -144,6 +147,7 @@ class NeuralTTS:
         self.rate = rate
         self.volume = volume
         self.pitch = pitch
+        self.auto_install_deps = auto_install_deps
 
         # ElevenLabs settings
         self.api_key = api_key or os.getenv("ELEVENLABS_API_KEY")
@@ -222,6 +226,8 @@ class NeuralTTS:
     async def _aspeak_edge(self, text: str, output: str) -> str:
         """Core edge_tts synthesis."""
         try:
+            if self.auto_install_deps:
+                ensure_feature_dependencies("tts_edge", auto_install=True)
             import edge_tts
         except ImportError:
             raise ImportError(
@@ -242,6 +248,8 @@ class NeuralTTS:
     async def _stream_edge(self, text: str):
         """Stream audio chunks from edge_tts."""
         try:
+            if self.auto_install_deps:
+                ensure_feature_dependencies("tts_edge", auto_install=True)
             import edge_tts
         except ImportError:
             raise ImportError("edge_tts is required. pip install edge-tts")

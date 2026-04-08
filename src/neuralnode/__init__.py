@@ -42,7 +42,7 @@ Quick Start::
     text = sr.listen()
 """
 
-__version__ = "3.1.0"
+__version__ = "2.1.0"
 __author__ = "NeuralNode Contributors"
 
 # ── Core types ────────────────────────────────────────────────────────────────
@@ -82,6 +82,7 @@ from .providers import (
     TransformersProvider,
     UniversalLocalProvider,
     # Custom models
+    Horus,
     HorusModel,
     HorusProvider,
 )
@@ -179,6 +180,13 @@ try:
 except ImportError:
     _TURBOQUANT_AVAILABLE = False
 
+# Thinking Mode (structured reasoning for any LLM)
+try:
+    from .thinking import ThinkingMode, ThinkingResponse, enable_thinking
+    _THINKING_AVAILABLE = True
+except ImportError:
+    _THINKING_AVAILABLE = False
+
 # OpenAI blocker
 from .core.openai_blocker import check_openai_blocked
 
@@ -220,6 +228,7 @@ except ImportError:
 
 # Logging helper
 from .utils.logger import get_logger, setup_logging
+from .utils.dependencies import ensure_feature_dependencies
 
 
 
@@ -639,7 +648,7 @@ __all__ = [
     "OllamaProvider", "AnthropicProvider", "GoogleProvider",
     "GroqProvider", "MistralProvider", "CohereProvider", "DeepSeekProvider",
     "LlamaCppProvider", "TransformersProvider", "UniversalLocalProvider",
-    "HorusModel", "HorusProvider",
+    "Horus", "HorusModel", "HorusProvider",
 
     # Memory
     "ConversationMemory", "FileMemory", "SlidingWindowMemory", "SummaryMemory",
@@ -656,8 +665,9 @@ __all__ = [
     "create_agent", "create_react_agent", "create_thinking_agent",
     "AgentExecutorOutput",
 
-    # Reasoning
+    # Reasoning & Thinking
     "UniversalReasoner", "ReasoningResult", "ReasoningStrategy", "reason",
+    "ThinkingMode", "ThinkingResponse", "enable_thinking",
 
     # Tools (full names)
     "WebSearchTool", "FileReaderTool", "FileWriterTool",
@@ -673,6 +683,7 @@ __all__ = [
 
     # Utilities
     "get_logger", "setup_logging",
+    "ensure_feature_dependencies",
     "check_openai_blocked",
 ]
 
@@ -705,3 +716,5 @@ if _SLACK_AVAILABLE:
     __all__ += ["SlackBot"]
 if _TURBOQUANT_AVAILABLE:
     __all__ += ["TurboQuant", "TurboQuantEngine", "TurboQuantConfig"]
+if _THINKING_AVAILABLE:
+    __all__ += ["ThinkingMode", "ThinkingResponse", "enable_thinking"]

@@ -11,9 +11,12 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import re
 import tempfile
+import urllib.error
+import urllib.request
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -22,6 +25,7 @@ from typing import Any, Dict, List, Optional
 from ..agents import _strip_thinking
 from ..core import BaseAgent, ensure_llm_response
 from ..rag import load_documents
+from ..utils.dependencies import ensure_feature_dependencies
 
 try:
     from telegram import Update
@@ -30,6 +34,29 @@ try:
     TELEGRAM_AVAILABLE = True
 except ImportError:
     TELEGRAM_AVAILABLE = False
+
+
+def _refresh_telegram_imports() -> None:
+    global TELEGRAM_AVAILABLE, Update, Application, CommandHandler, ContextTypes, MessageHandler, filters
+    try:
+        from telegram import Update as _Update
+        from telegram.ext import (
+            Application as _Application,
+            CommandHandler as _CommandHandler,
+            ContextTypes as _ContextTypes,
+            MessageHandler as _MessageHandler,
+            filters as _filters,
+        )
+
+        Update = _Update
+        Application = _Application
+        CommandHandler = _CommandHandler
+        ContextTypes = _ContextTypes
+        MessageHandler = _MessageHandler
+        filters = _filters
+        TELEGRAM_AVAILABLE = True
+    except ImportError:
+        TELEGRAM_AVAILABLE = False
 
 
 @dataclass
@@ -67,6 +94,10 @@ class TelegramBotConfig:
     document_chunk_limit: int = 6
     max_document_chars: int = 16000
     download_dir: Optional[str] = None
+    validate_token_on_start: bool = True
+    auto_install_deps: bool = True
+    suppress_library_logs: bool = True
+    debug_updates: bool = False
 
 
 class TelegramBot:
@@ -79,6 +110,10 @@ class TelegramBot:
         config: Optional[TelegramBotConfig] = None,
         system_prompt: Optional[str] = None,
     ):
+        self.config = config or TelegramBotConfig(token=token)
+        if not TELEGRAM_AVAILABLE and self.config.auto_install_deps:
+            ensure_feature_dependencies("telegram", auto_install=True)
+            _refresh_telegram_imports()
         if not TELEGRAM_AVAILABLE:
             raise ImportError(
                 "python-telegram-bot required. Install with: pip install python-telegram-bot"
@@ -86,7 +121,6 @@ class TelegramBot:
 
         self.token = token
         self.agent = agent
-        self.config = config or TelegramBotConfig(token=token)
         self.system_prompt = system_prompt or "You are a helpful AI assistant on Telegram."
 
         self.sessions: Dict[int, TelegramSession] = {}
@@ -139,6 +173,16 @@ class TelegramBot:
         target.mkdir(parents=True, exist_ok=True)
         return target
 
+    def validate_token(self, timeout: int = 10) -> bool:
+        """Validate BotFather token against Telegram `getMe` endpoint."""
+        url = f"https://api.telegram.org/bot{self.token}/getMe"
+        try:
+            with urllib.request.urlopen(url, timeout=timeout) as response:
+                payload = json.loads(response.read().decode("utf-8", errors="ignore"))
+            return bool(payload.get("ok"))
+        except (urllib.error.URLError, TimeoutError, ValueError):
+            return False
+
     async def _download_telegram_file(self, file_id: str, filename: str) -> Path:
         telegram_file = await self.application.bot.get_file(file_id)
         target = self._get_download_dir() / filename
@@ -181,6 +225,12 @@ class TelegramBot:
             return f"Previous context:\n{chat_context}\n\nUser message: {user_message}"
         return user_message
 
+    def _configure_runtime_logging(self) -> None:
+        if not self.config.suppress_library_logs:
+            return
+        for logger_name in ("httpx", "httpcore", "telegram", "telegram.ext"):
+            logging.getLogger(logger_name).setLevel(logging.WARNING)
+
     def _run_agent(self, task: str) -> str:
         response = self.agent.run(task)
         if hasattr(response, "output"):
@@ -195,6 +245,10 @@ class TelegramBot:
         text = re.sub(r"Thought:.*?\n", "", text, flags=re.IGNORECASE | re.DOTALL)
         text = re.sub(r"REASONING:.*?\n", "", text, flags=re.IGNORECASE | re.DOTALL)
         return text.strip()
+
+    async def _run_agent_with_timeout(self, task: str) -> str:
+        timeout = max(1, int(self.config.response_timeout or 60))
+        return await asyncio.wait_for(asyncio.to_thread(self._run_agent, task), timeout=timeout)
 
     def _record_exchange(self, session: TelegramSession, user_message: str, response: str):
         session.chat_history.append(
@@ -372,15 +426,21 @@ class TelegramBot:
             await update.message.reply_text("You are not authorized to use this bot.")
             return
 
-        user_message = update.message.text
+        user_message = update.message.text or ""
+        if self.config.debug_updates:
+            print(f"[Telegram][text] user={user.id} message={user_message[:200]}")
         if self.config.show_typing:
             await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
 
         try:
             task = self._build_user_task(session, user_message)
-            response = self._run_agent(task)
+            response = await self._run_agent_with_timeout(task)
             self._record_exchange(session, user_message, response)
             await self._send_response(update, response)
+        except asyncio.TimeoutError:
+            await update.message.reply_text(
+                "Model response timed out. Try a shorter prompt or reduce max tokens."
+            )
         except Exception as exc:
             await update.message.reply_text(f"Error processing your message: {str(exc)[:200]}")
 
@@ -408,6 +468,8 @@ class TelegramBot:
 
         voice = update.message.voice
         file_name = f"voice_{user.id}_{voice.file_unique_id}.ogg"
+        if self.config.debug_updates:
+            print(f"[Telegram][voice] user={user.id} file={file_name}")
 
         try:
             downloaded = await self._download_telegram_file(voice.file_id, file_name)
@@ -419,11 +481,15 @@ class TelegramBot:
             )
 
             task = self._build_user_task(session, transcript)
-            response = self._run_agent(task)
+            response = await self._run_agent_with_timeout(task)
             self._record_exchange(session, transcript, response)
 
             await update.message.reply_text(f"Transcript: {transcript}")
             await self._send_response(update, response)
+        except asyncio.TimeoutError:
+            await update.message.reply_text(
+                "Model response timed out after transcription. Try shorter audio or a shorter prompt."
+            )
         except Exception as exc:
             await update.message.reply_text(f"Voice transcription failed: {str(exc)[:300]}")
 
@@ -443,6 +509,8 @@ class TelegramBot:
 
         document = update.message.document
         safe_name = document.file_name or f"document_{document.file_unique_id}"
+        if self.config.debug_updates:
+            print(f"[Telegram][document] user={user.id} file={safe_name}")
         try:
             downloaded = await self._download_telegram_file(document.file_id, safe_name)
             extracted_text = self._extract_document_text(downloaded)
@@ -452,11 +520,15 @@ class TelegramBot:
                 f"Document content:\n{extracted_text}\n\n"
                 "Provide a concise summary, key points, risks, and actionable insights."
             )
-            response = self._run_agent(task)
+            response = await self._run_agent_with_timeout(task)
             self._record_exchange(session, f"[Document upload] {safe_name}", response)
 
             header = f"Document received: {safe_name}\nSize: {document.file_size / 1024:.1f} KB\n\n"
             await self._send_response(update, header + response)
+        except asyncio.TimeoutError:
+            await update.message.reply_text(
+                "Model response timed out while analyzing document. Try a smaller file."
+            )
         except Exception as exc:
             await update.message.reply_text(f"Document analysis failed: {str(exc)[:300]}")
 
@@ -477,12 +549,17 @@ class TelegramBot:
 
     async def _handle_error(self, update: object, context: ContextTypes.DEFAULT_TYPE):
         print(f"Telegram bot error: {context.error}")
+        if self.config.debug_updates:
+            logging.exception("Telegram update error", exc_info=context.error)
 
     def start(self, poll_interval: float = 1.0):
         if self._running:
             print("Bot is already running.")
             return
+        if self.config.validate_token_on_start and not self.validate_token():
+            raise ValueError("Invalid Telegram bot token. Verify your BotFather token and network connectivity.")
 
+        self._configure_runtime_logging()
         self.application = Application.builder().token(self.token).build()
         self._setup_handlers()
         self._running = True
@@ -494,6 +571,9 @@ class TelegramBot:
         self._running = True
 
         async def run_bot():
+            if self.config.validate_token_on_start and not self.validate_token():
+                raise ValueError("Invalid Telegram bot token. Verify your BotFather token and network connectivity.")
+            self._configure_runtime_logging()
             self.application = Application.builder().token(self.token).build()
             self._setup_handlers()
             await self.application.initialize()

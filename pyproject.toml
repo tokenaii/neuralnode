@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "neuralnode"
-version = "3.1.0"
+version = "2.1.0"
 description = "Comprehensive AI Framework with 50+ LLM Providers, Advanced Agents, Chains, Memory, RAG, and 100+ Tools"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -127,9 +127,8 @@ replica = [
     "edge-tts>=6.1.0",
 ]
 
-turboquant = [
-    "turboquant>=0.1.0",
-]
+# TurboQuant (built-in, no external dependency needed)
+turboquant = []
 
 # Tools
 tools = [
@@ -178,7 +177,6 @@ all = [
     "edge-tts>=6.1.0",
     "SpeechRecognition>=3.10.0",
     "pydub>=0.25.1",
-    "turboquant>=0.1.0",
     "pypdf>=3.17.0",
     "python-docx>=0.8.11",
     "beautifulsoup4>=4.12.0",

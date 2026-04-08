@@ -191,13 +191,22 @@ class WhatsAppWebBot:
         """
         self.logger.info("Starting WhatsApp Web (unofficial)...")
         self.logger.warning("Using unofficial library - may break with WhatsApp updates")
-        
-        # Note: This is a placeholder as the actual implementation
-        # depends on the specific library version and is subject to change
-        # Users should refer to the library's documentation
-        raise NotImplementedError(
-            "WhatsApp Web integration requires manual setup. "
-            "Please refer to whatsapp-web.py documentation."
+
+        # Initialize client from the installed whatsapp library and run it
+        # using whichever startup method is available in that version.
+        self.client = WhatsAppClient()
+
+        start_methods = ("start", "run", "run_forever", "listen")
+        for method_name in start_methods:
+            method = getattr(self.client, method_name, None)
+            if callable(method):
+                self.logger.info(f"WhatsApp Web client starting via `{method_name}()`")
+                method()
+                return
+
+        raise RuntimeError(
+            "Unsupported whatsapp-web client API. "
+            "Expected one of: start(), run(), run_forever(), listen()."
         )
 
 

@@ -77,7 +77,6 @@ Supported IDs currently include:
 - `tokenaii/Hours-1.0-4B-GGUF/Horus-1.0-4B-Q6_K.gguf`
 - `tokenaii/Hours-1.0-4B-GGUF/Horus-1.0-4B-Q8_0.gguf`
 - `tokenaii/Hours-1.0-4B-GGUF/Horus-1.0-4B-F16.gguf`
-- `tokenaii/horus-instruct`
 
 ## Replica TTS
 

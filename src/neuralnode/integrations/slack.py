@@ -182,10 +182,9 @@ class SlackBot:
             handler = SocketModeHandler(self.app, self.app_token)
             handler.start()
         else:
-            # HTTP mode
-            from slack_bolt.adapter.fastapi import SlackRequestHandler
-            # Run as FastAPI app
-            pass
+            # HTTP mode (built-in Bolt web server)
+            self.logger.info(f"Starting Slack HTTP mode on port {port}")
+            self.app.start(port=port)
 
 
 def create_slack_bot(

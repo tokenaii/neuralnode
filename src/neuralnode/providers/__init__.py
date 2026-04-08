@@ -108,10 +108,11 @@ from .universal_local import UniversalLocalProvider, load_local_model
 
 # ── Custom Model Providers ─────────────────────────────────────────────────────
 try:
-    from .horus import HorusProvider, HorusModel, load_horus
+    from .horus import HorusProvider, HorusModel, Horus, load_horus
 except ImportError:
     HorusProvider = None  # type: ignore
     HorusModel = None  # type: ignore
+    Horus = None  # type: ignore
     load_horus = None  # type: ignore
 
 # MLX Provider (Apple Silicon — optional)
@@ -121,12 +122,8 @@ except ImportError:
     MLXProvider = None  # type: ignore
 
 # ── Convenience aliases ────────────────────────────────────────────────────────
-AnthropicProvider = AnthropicChatProvider
-GoogleProvider    = GoogleChatProvider
-GroqProvider      = GroqChatProvider
-MistralProvider   = MistralChatProvider
-CohereProvider    = CohereChatProvider
-DeepSeekProvider  = DeepSeekChatProvider
+
+# ── Local provider is-local detection helper ───────────────────────────────────
 
 _LOCAL_PROVIDER_NAMES = {
     "ollama", "llamacpp", "llama.cpp", "transformers", "llamafile",
@@ -238,5 +235,5 @@ __all__ = [
     "UniversalLocalProvider", "load_local_model",
     
     # Custom Models
-    "HorusProvider", "HorusModel", "load_horus",
+    "HorusProvider", "HorusModel", "Horus", "load_horus",
 ]

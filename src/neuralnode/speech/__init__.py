@@ -21,6 +21,8 @@ import logging
 from typing import Optional, Dict, Any, List
 from pathlib import Path
 
+from ..utils.dependencies import ensure_feature_dependencies
+
 logger = logging.getLogger(__name__)
 
 
@@ -109,6 +111,7 @@ class NeuralSpeech:
         pause_threshold: float = 0.8,
         phrase_time_limit: Optional[float] = None,
         timeout: Optional[float] = None,
+        auto_install_deps: bool = True,
     ):
         """
         Args:
@@ -118,7 +121,10 @@ class NeuralSpeech:
             phrase_time_limit: Maximum seconds for a phrase. ``None`` = no limit.
             timeout: Maximum seconds to wait for speech to start. ``None`` = no limit.
         """
+        self.auto_install_deps = auto_install_deps
         try:
+            if self.auto_install_deps:
+                ensure_feature_dependencies("speech", auto_install=True)
             import speech_recognition as sr_lib
         except ImportError:
             raise ImportError(
@@ -275,6 +281,8 @@ class NeuralSpeech:
     def _load_mp3(self, path: str):
         """Load an MP3 file by converting to WAV via pydub."""
         try:
+            if self.auto_install_deps:
+                ensure_feature_dependencies("speech_mp3", auto_install=True)
             from pydub import AudioSegment
             import io
 

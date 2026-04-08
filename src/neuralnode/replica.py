@@ -14,6 +14,9 @@ import asyncio
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional
+import importlib
+
+from .utils.dependencies import ensure_feature_dependencies
 
 try:
     import edge_tts
@@ -112,7 +115,16 @@ class ReplicaTTS:
         rate: str = "+0%",
         pitch: str = "+0Hz",
         volume: str = "+0%",
+        auto_install_deps: bool = True,
     ):
+        global EDGE_TTS_AVAILABLE, edge_tts
+        if not EDGE_TTS_AVAILABLE and auto_install_deps:
+            ensure_feature_dependencies("replica_tts", auto_install=True)
+            try:
+                edge_tts = importlib.import_module("edge_tts")
+                EDGE_TTS_AVAILABLE = True
+            except ImportError:
+                EDGE_TTS_AVAILABLE = False
         if not EDGE_TTS_AVAILABLE:
             raise ImportError("edge_tts is required for Replica TTS. Install with: pip install edge-tts")
 
