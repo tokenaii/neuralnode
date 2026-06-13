@@ -46,9 +46,11 @@ twine check dist/*
 
 # Upload to PyPI
 echo "📤 Uploading to PyPI..."
-twine upload dist/* \
-    --username __token__ \
-    --password pypi-AgEIcHlwaS5vcmcCJGQ1ZjQ2NDQyLThjNjctNGNlYi1hOTlhLTYyMGFlZGQ2MzAxOAACKlszLCJiMzI5ODAyMi04MjlhLTRlODItOWQzMC1iNzlmZWM2NjdlZmIiXQAABiDYVt0Dx5n9hI2ZtbQxW1v_fvfgFJd_XwhC3ZT9hp6wfw
+if [ -z "$TWINE_USERNAME" ] || [ -z "$TWINE_PASSWORD" ]; then
+    echo "Error: set TWINE_USERNAME and TWINE_PASSWORD before publishing."
+    exit 1
+fi
+twine upload dist/*
 
 # Verify upload
 echo "✅ Verifying upload..."

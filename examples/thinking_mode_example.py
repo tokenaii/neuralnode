@@ -11,7 +11,7 @@ sys.path.insert(0, r"d:\Work Space\NeuralNode\neuralnode\src")
 import neuralnode as nn
 
 # Configuration
-MODEL_ID = "tokenaii/Hours-1.0-4B-GGUF/Horus-1.0-4B-Q4_K_M.gguf"
+MODEL_ID = "tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q4_K_M.gguf"
 CACHE_DIR = "D:/neuralnode_models"
 
 

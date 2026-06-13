@@ -22,6 +22,13 @@ from typing import Any, Dict, Iterator, List, Optional, Sequence, Union
 
 logger = logging.getLogger(__name__)
 
+# Suppress Hugging Face Hub unauthenticated request warnings globally
+logging.getLogger("huggingface_hub.utils._http").setLevel(logging.ERROR)
+warnings.filterwarnings(
+    "ignore",
+    message=r".*You are sending unauthenticated requests to the HF Hub.*",
+)
+
 try:
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
@@ -33,6 +40,14 @@ except ImportError:
     AutoModelForCausalLM = None
     AutoTokenizer = None
     TextIteratorStreamer = None
+
+try:
+    from diffusers import DiffusionPipeline
+
+    DIFFUSERS_AVAILABLE = True
+except ImportError:
+    DIFFUSERS_AVAILABLE = False
+    DiffusionPipeline = None
 
 try:
     import llama_cpp
@@ -70,6 +85,17 @@ def _refresh_transformers_imports() -> None:
         TRANSFORMERS_AVAILABLE = False
 
 
+def _refresh_diffusers_imports() -> None:
+    global DIFFUSERS_AVAILABLE, DiffusionPipeline
+    try:
+        from diffusers import DiffusionPipeline as _DiffusionPipeline
+
+        DiffusionPipeline = _DiffusionPipeline
+        DIFFUSERS_AVAILABLE = True
+    except ImportError:
+        DIFFUSERS_AVAILABLE = False
+
+
 def _refresh_llama_imports() -> None:
     global LLAMA_CPP_AVAILABLE, llama_cpp, Llama
     try:
@@ -105,8 +131,9 @@ UNIFIED_SYSTEM_PROMPT = (
     "You are a multilingual model and can communicate in multiple languages, but you must always reply in the same language as the user's latest message unless the user explicitly requests another language.\n"
     "\n"
     "Behavior rules:\n"
-    "1) When the user greets you, do NOT say: 'I'm Horus, an AI model developed by TokenAI.'\n"
-    "   Only greet the user naturally, mention that you are Horus, and ask how you can help.\n"
+    "1) When the user greets you, reply with a short natural greeting and ask how you can help.\n"
+    "   Do NOT say: 'I'm Horus, an AI model developed by TokenAI.'\n"
+    "   Do NOT mention TokenAI, your developer, your origin, or any self-introduction unless the user explicitly asks who you are.\n"
     "2) Answer in the same language as the user's latest message unless the user explicitly requests another language.\n"
     "3) Match the length of your answer to the size and depth of the user's question.\n"
     "   Keep short questions short, and provide detailed answers only when needed.\n"
@@ -120,6 +147,7 @@ UNIFIED_SYSTEM_PROMPT = (
     "11) If the user asks for code, produce correct runnable code and briefly mention assumptions when necessary.\n"
     "12) If the user request is unsafe or harmful, refuse briefly and offer a safe alternative.\n"
     "13) Do not repeatedly introduce yourself. Only provide your identity if the user explicitly asks who you are.\n"
+    "    Outside identity questions, never start your answer with self-introduction, biography, or model-description text.\n"
     "14) You currently have NO permissions or authority over any tools, device controls, system settings, files, or user hardware unless tools are explicitly enabled later.\n"
     "    Never claim access to the user's device, apps, files, camera, microphone, or controls.\n"
     "15) If the user asks for more information about you as the Horus model, state that Horus is the first publicly announced open-source model originating from Egypt and one of the strongest models in its category.\n"
@@ -163,7 +191,7 @@ class HorusProvider(BaseLLMProvider):
             "repo_id": "tokenaii/horus",
             "subfolder": "Horus-1.0-4B",
         },
-        "tokenaii/Hours-1.0-4B-GGUF/Horus-1.0-4B-Q4_K_M.gguf": {
+        "tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q4_K_M.gguf": {
             "name": "Horus-1.0-4B-Q4_K_M.gguf",
             "official_name": "Horus-1.0-4B-Q4_K_M.gguf",
             "size": "4B",
@@ -171,7 +199,7 @@ class HorusProvider(BaseLLMProvider):
             "quantization": "Q4_K_M",
             "file_size": "2.78 GB",
         },
-        "tokenaii/Hours-1.0-4B-GGUF/Horus-1.0-4B-Q5_K_M.gguf": {
+        "tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q5_K_M.gguf": {
             "name": "Horus-1.0-4B-Q5_K_M.gguf",
             "official_name": "Horus-1.0-4B-Q5_K_M.gguf",
             "size": "4B",
@@ -179,7 +207,7 @@ class HorusProvider(BaseLLMProvider):
             "quantization": "Q5_K_M",
             "file_size": "3.23 GB",
         },
-        "tokenaii/Hours-1.0-4B-GGUF/Horus-1.0-4B-Q6_K.gguf": {
+        "tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q6_K.gguf": {
             "name": "Horus-1.0-4B-Q6_K.gguf",
             "official_name": "Horus-1.0-4B-Q6_K.gguf",
             "size": "4B",
@@ -187,7 +215,7 @@ class HorusProvider(BaseLLMProvider):
             "quantization": "Q6_K",
             "file_size": "3.71 GB",
         },
-        "tokenaii/Hours-1.0-4B-GGUF/Horus-1.0-4B-Q8_0.gguf": {
+        "tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q8_0.gguf": {
             "name": "Horus-1.0-4B-Q8_0.gguf",
             "official_name": "Horus-1.0-4B-Q8_0.gguf",
             "size": "4B",
@@ -195,13 +223,53 @@ class HorusProvider(BaseLLMProvider):
             "quantization": "Q8_0",
             "file_size": "4.8 GB",
         },
-        "tokenaii/Hours-1.0-4B-GGUF/Horus-1.0-4B-F16.gguf": {
+        "tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-F16.gguf": {
             "name": "Horus-1.0-4B-F16.gguf",
             "official_name": "Horus-1.0-4B-F16.gguf",
             "size": "4B",
             "type": "gguf",
             "quantization": "F16",
             "file_size": "9.83 GB",
+        },
+        "tokenaii/Horus-Lens-1.0": {
+            "name": "Horus-Lens-1.0",
+            "official_name": "Horus-Lens-1.0",
+            "size": "Unknown",
+            "type": "text-to-image",
+            "repo_id": "tokenaii/Horus-Lens-1.0",
+            "task": "text-to-image",
+        },
+        "tokenaii/Horus-Lens-1.0-GGUF/Horus-Lens-1.0-Q3_K_M.gguf": {
+            "name": "Horus-Lens-1.0-Q3_K_M.gguf",
+            "official_name": "Horus-Lens-1.0-Q3_K_M.gguf",
+            "size": "Unknown",
+            "type": "gguf",
+            "quantization": "Q3_K_M",
+            "file_size": "4.56 GB",
+        },
+        "tokenaii/Horus-Lens-1.0-GGUF/Horus-Lens-1.0-Q4_K_M.gguf": {
+            "name": "Horus-Lens-1.0-Q4_K_M.gguf",
+            "official_name": "Horus-Lens-1.0-Q4_K_M.gguf",
+            "size": "Unknown",
+            "type": "gguf",
+            "quantization": "Q4_K_M",
+            "file_size": "5.07 GB",
+        },
+        "tokenaii/Horus-Lens-1.0-GGUF/Horus-Lens-1.0-Q6_K.gguf": {
+            "name": "Horus-Lens-1.0-Q6_K.gguf",
+            "official_name": "Horus-Lens-1.0-Q6_K.gguf",
+            "size": "Unknown",
+            "type": "gguf",
+            "quantization": "Q6_K",
+            "file_size": "6.1 GB",
+        },
+        "tokenaii/Horus-Lens-1.0-GGUF/Horus-Lens-1.0-Q8_0.gguf": {
+            "name": "Horus-Lens-1.0-Q8_0.gguf",
+            "official_name": "Horus-Lens-1.0-Q8_0.gguf",
+            "size": "Unknown",
+            "type": "gguf",
+            "quantization": "Q8_0",
+            "file_size": "7.9 GB",
         },
     }
 
@@ -269,29 +337,53 @@ class HorusProvider(BaseLLMProvider):
         turboquant_protected_layers: Optional[List[int]] = None,
         suppress_warnings: bool = True,
         suppress_native_output: bool = True,
-        auto_install_deps: bool = False,
+        suppress_library_logs: bool = True,
+        auto_install_deps: bool = True,
         **kwargs,
     ):
         self.auto_install_deps = auto_install_deps
-        if not self._is_gguf_model_id(model_id) and not TRANSFORMERS_AVAILABLE and self.auto_install_deps:
-            ensure_feature_dependencies("horus_transformers", auto_install=True)
-            _refresh_transformers_imports()
-        if not self._is_gguf_model_id(model_id) and not TRANSFORMERS_AVAILABLE:
-            raise ImportError(
-                "transformers and torch are required for Horus transformers models. "
-                "Install with: pip install transformers torch"
-            )
 
         # `create_provider("horus", model="...")` passes `model`; map it to Horus `model_id`.
         forwarded_model = kwargs.pop("model", None)
         if forwarded_model:
             model_id = str(forwarded_model)
 
+        # Support `filename` kwarg so users can write:
+        #   HorusLensModel(model_id="tokenaii/Horus-Lens-1.0-GGUF", filename="Horus-Lens-1.0-Q3_K_M.gguf")
+        forwarded_filename = kwargs.pop("filename", None)
+        if forwarded_filename:
+            model_id = f"{model_id.rstrip('/')}/{forwarded_filename}"
+
+        # Case-insensitive normalization of model_id to match keys in HORUS_MODELS
+        matched_key = None
+        for k in self.HORUS_MODELS.keys():
+            if k.lower() == model_id.lower():
+                matched_key = k
+                break
+        if matched_key:
+            model_id = matched_key
+
+        is_lens_model = self._is_text_to_image_model_id(model_id)
+        if (
+            not is_lens_model
+            and not self._is_gguf_model_id(model_id)
+            and not TRANSFORMERS_AVAILABLE
+            and self.auto_install_deps
+        ):
+            ensure_feature_dependencies("horus_transformers", auto_install=True)
+            _refresh_transformers_imports()
+        if not is_lens_model and not self._is_gguf_model_id(model_id) and not TRANSFORMERS_AVAILABLE:
+            raise ImportError(
+                "transformers and torch are required for Horus transformers models. "
+                "Install with: pip install transformers torch"
+            )
+
         super().__init__(model=model_id, **kwargs)
 
         self.model_id = model_id
         self.device = device or self._resolve_device()
         self.n_gpu_layers = n_gpu_layers
+        self._user_specified_dtype = torch_dtype  # track explicit user choice
         self.torch_dtype = self._resolve_torch_dtype(torch_dtype)
         self.load_in_8bit = load_in_8bit
         self.load_in_4bit = load_in_4bit
@@ -312,12 +404,10 @@ class HorusProvider(BaseLLMProvider):
         self.cache_dir = cache_dir
         self.local_files_only = local_files_only
         self.trust_remote_code = trust_remote_code
-        
-        # Obfuscated fallback HF token to suppress warnings (auto-injected for users)
-        import base64
-        _df_token = base64.b64decode("aGZfRklTc25aQ1ZQVURxdmtIbWtxc01Cb2xCRFFEUFdwV0lOTg==").decode('utf-8')
-        
-        self.token = token or os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACE_TOKEN") or _df_token
+
+        if token and not suppress_warnings:
+            logger.warning("Horus downloads are public-only; the provided credential was ignored.")
+        self.token = None
         self.proxies = proxies
         self.force_download = force_download
         self.resume_download = resume_download
@@ -330,6 +420,7 @@ class HorusProvider(BaseLLMProvider):
         self.turboquant_protected_layers = turboquant_protected_layers
         self.suppress_warnings = suppress_warnings
         self.suppress_native_output = suppress_native_output
+        self.suppress_library_logs = suppress_library_logs
 
         self.generation_config = {
             "max_new_tokens": max_new_tokens,
@@ -353,6 +444,13 @@ class HorusProvider(BaseLLMProvider):
         if not self.suppress_warnings:
             logger.warning(message, *args)
 
+    def _configure_external_logging(self) -> None:
+        if not self.suppress_library_logs:
+            return
+        for logger_name in ("httpx", "httpcore", "huggingface_hub", "transformers"):
+            logging.getLogger(logger_name).setLevel(logging.WARNING)
+        logging.getLogger("huggingface_hub.utils._http").setLevel(logging.ERROR)
+
     @contextmanager
     def _quiet_native_output(self):
         if not self.suppress_native_output:
@@ -373,13 +471,23 @@ class HorusProvider(BaseLLMProvider):
                 with redirect_stdout(devnull), redirect_stderr(devnull):
                     yield
             finally:
-                if old_stdout_fd is not None:
-                    os.dup2(old_stdout_fd, 1)
-                    os.close(old_stdout_fd)
-                if old_stderr_fd is not None:
-                    os.dup2(old_stderr_fd, 2)
-                    os.close(old_stderr_fd)
-                devnull.close()
+                # Always restore fds and close devnull, even if yield raised.
+                try:
+                    if old_stdout_fd is not None:
+                        os.dup2(old_stdout_fd, 1)
+                        os.close(old_stdout_fd)
+                except OSError:
+                    pass
+                try:
+                    if old_stderr_fd is not None:
+                        os.dup2(old_stderr_fd, 2)
+                        os.close(old_stderr_fd)
+                except OSError:
+                    pass
+                try:
+                    devnull.close()
+                except OSError:
+                    pass
 
     def _resolve_device(self) -> str:
         if torch is not None and torch.cuda.is_available():
@@ -390,6 +498,8 @@ class HorusProvider(BaseLLMProvider):
         if torch is None:
             return None
         if torch_dtype is None:
+            if self.device == "cuda" and torch.cuda.is_available() and torch.cuda.is_bf16_supported():
+                return torch.bfloat16
             return torch.float16 if self.device == "cuda" else torch.float32
         if isinstance(torch_dtype, str):
             mapping = {
@@ -404,16 +514,68 @@ class HorusProvider(BaseLLMProvider):
             return mapping.get(torch_dtype.lower(), torch.float16)
         return torch_dtype
 
+    def _resolve_t2i_dtype(self) -> Any:
+        """Determine a safe dtype for text-to-image (Lens) models.
+
+        Flux/ZImage-class transformers overflow in float16 attention layers on GPUs
+        that lack native bfloat16 (e.g. Tesla T4, GTX 16xx).  This helper picks the
+        safest dtype that will actually produce a visible image:
+          * bfloat16 if hardware-supported (Ampere+)  – fast & numerically safe
+          * float32 otherwise (T4 / Turing)            – slower but correct
+        """
+        if torch is None:
+            return None
+        if self.device != "cuda" or not torch.cuda.is_available():
+            return torch.float32
+        if torch.cuda.is_bf16_supported():
+            return torch.bfloat16
+        # T4 / Turing – float16 overflows in transformer attention, use float32
+        return torch.float32
+
     @staticmethod
     def _is_gguf_model_id(model_id: str) -> bool:
         return model_id.lower().endswith(".gguf")
+
+    @classmethod
+    def _is_text_to_image_model_id(cls, model_id: str) -> bool:
+        """Return True for text-to-image models, but NOT for GGUF quantized variants."""
+        if not model_id:
+            return False
+        # GGUF files are never loaded via DiffusionPipeline.from_pretrained
+        if cls._is_gguf_model_id(model_id):
+            return False
+        info = cls.HORUS_MODELS.get(model_id, {})
+        if str(info.get("type", "")).lower() == "text-to-image":
+            return True
+        return "lens" in model_id.lower()
+
+    @classmethod
+    def _is_gguf_text_to_image_model_id(cls, model_id: str) -> bool:
+        """Return True for GGUF-quantized text-to-image models (e.g. Horus Lens GGUF)."""
+        if not model_id:
+            return False
+        if not cls._is_gguf_model_id(model_id):
+            return False
+        # Check the registry first (both 'task' and 'type' fields)
+        info = cls.HORUS_MODELS.get(model_id, {})
+        if str(info.get("task", "")).lower() == "text-to-image":
+            return True
+        if str(info.get("type", "")).lower() == "gguf" and "lens" in model_id.lower():
+            return True
+        # Heuristic: "lens" in the model path means text-to-image
+        return "lens" in model_id.lower()
 
     def _build_model_info(self) -> Dict[str, Any]:
         base = dict(self.HORUS_MODELS.get(self.model_id, {}))
         base.setdefault("name", self.model_id.split("/")[-1])
         base.setdefault("official_name", self._infer_official_name(self.model_id))
         base.setdefault("size", "Unknown")
-        base.setdefault("type", "gguf" if self._is_gguf_model_id(self.model_id) else "safetensors")
+        base.setdefault(
+            "type",
+            "text-to-image"
+            if self._is_text_to_image_model_id(self.model_id)
+            else ("gguf" if self._is_gguf_model_id(self.model_id) else "safetensors"),
+        )
         if base.get("type") == "gguf" and "quantization" not in base:
             _, filename = self._split_repo_and_filename(self.model_id)
             quant_match = re.search(r"-(Q\d(?:_[A-Z0-9]+)?|TQ\d(?:_[A-Z0-9]+)?|F16|BF16)\.gguf$", filename, flags=re.IGNORECASE)
@@ -434,11 +596,379 @@ class HorusProvider(BaseLLMProvider):
         return base
 
     def load(self) -> "HorusProvider":
+        self._configure_external_logging()
         if self.model is not None:
             return self
+        # GGUF check MUST come before the text-to-image check because
+        # GGUF text-to-image models (e.g. Horus-Lens GGUF) need a
+        # completely different loading path than DiffusionPipeline.
+        if self._is_gguf_text_to_image_model_id(self.model_id):
+            return self._load_gguf_text_to_image()
         if self._is_gguf_model_id(self.model_id):
             return self._load_gguf()
+        if self._is_text_to_image_model_id(self.model_id):
+            return self._load_text_to_image()
         return self._load_transformers()
+
+    @staticmethod
+    def _is_cuda_oom(exc: Exception) -> bool:
+        text = str(exc).lower()
+        return "out of memory" in text or "cuda out of memory" in text
+
+    def _clear_cuda_cache(self) -> None:
+        if torch is None or not torch.cuda.is_available():
+            return
+        try:
+            torch.cuda.empty_cache()
+        except Exception:
+            pass
+
+    def _load_text_to_image(self) -> "HorusProvider":
+        if not DIFFUSERS_AVAILABLE and self.auto_install_deps:
+            ensure_feature_dependencies("horus_lens", auto_install=True)
+            _refresh_diffusers_imports()
+            _refresh_transformers_imports()
+        if not DIFFUSERS_AVAILABLE:
+            raise ImportError(
+                "diffusers, transformers, torch, accelerate, and pillow are required for Horus Lens.\n"
+                "Install with:\n"
+                "  pip install \"neuralnode[horus]\"\n"
+                "or:\n"
+                "  pip install diffusers transformers torch accelerate pillow"
+            )
+        if torch is None:
+            _refresh_transformers_imports()
+        if torch is None:
+            raise ImportError("torch is required for Horus Lens text-to-image generation.")
+
+        repo_id = self._model_info.get("repo_id", self.model_id)
+        pipeline_kwargs: Dict[str, Any] = {
+            "cache_dir": self.cache_dir,
+            "local_files_only": self.local_files_only,
+            "trust_remote_code": self.trust_remote_code,
+            "token": self.token,
+        }
+        if self.revision:
+            pipeline_kwargs["revision"] = self.revision
+        if self.variant:
+            pipeline_kwargs["variant"] = self.variant
+        # Use a safe dtype for text-to-image; user-explicit overrides are honoured.
+        t2i_dtype = self.torch_dtype
+        if self._user_specified_dtype is None:
+            t2i_dtype = self._resolve_t2i_dtype()
+        if t2i_dtype is not None:
+            pipeline_kwargs["torch_dtype"] = t2i_dtype
+
+        try:
+            # Check if this model is Horus-Lens-1.0 which requires custom component mapping
+            if "horus-lens-1.0" in repo_id.lower():
+                try:
+                    try:
+                        from diffusers import ZImagePipeline
+                    except ImportError:
+                        from diffusers.pipelines.z_image.pipeline_z_image import ZImagePipeline
+
+                    class PatchedZImagePipeline(ZImagePipeline):
+                        def __init__(
+                            self,
+                            horus_scheduler,
+                            horus_text_encoder,
+                            horus_tokenizer,
+                            horus_transformer,
+                            horus_vae,
+                        ):
+                            from diffusers import DiffusionPipeline
+                            DiffusionPipeline.__init__(self)
+                            self.register_modules(
+                                horus_scheduler=horus_scheduler,
+                                horus_text_encoder=horus_text_encoder,
+                                horus_tokenizer=horus_tokenizer,
+                                horus_transformer=horus_transformer,
+                                horus_vae=horus_vae,
+                            )
+                            self.scheduler = horus_scheduler
+                            self.text_encoder = horus_text_encoder
+                            self.tokenizer = horus_tokenizer
+                            self.transformer = horus_transformer
+                            self.vae = horus_vae
+
+                            # Initialize VAE scale factor and image processor
+                            vae_scale = 8
+                            if hasattr(self, "vae") and self.vae is not None:
+                                if hasattr(self.vae, "config") and getattr(self.vae.config, "block_out_channels", None) is not None:
+                                    vae_scale = 2 ** (len(self.vae.config.block_out_channels) - 1)
+                            self.vae_scale_factor = vae_scale
+                            
+                            from diffusers.image_processor import VaeImageProcessor
+                            self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor * 2)
+                    
+                    self.model = PatchedZImagePipeline.from_pretrained(
+                        repo_id,
+                        **pipeline_kwargs
+                    )
+                except Exception:
+                    # Fallback to default load if patch fails
+                    self.model = DiffusionPipeline.from_pretrained(repo_id, **pipeline_kwargs)
+            else:
+                self.model = DiffusionPipeline.from_pretrained(repo_id, **pipeline_kwargs)
+        except Exception as exc:
+            raise RuntimeError(
+                f"Failed to load Horus Lens from '{repo_id}'. "
+                "Only public Hugging Face repositories are supported."
+            ) from exc
+
+        self._finalize_t2i_pipeline()
+        return self
+
+    def _load_gguf_text_to_image(self) -> "HorusProvider":
+        if not DIFFUSERS_AVAILABLE and self.auto_install_deps:
+            ensure_feature_dependencies("horus_lens", auto_install=True)
+            _refresh_diffusers_imports()
+            _refresh_transformers_imports()
+        if not DIFFUSERS_AVAILABLE:
+            raise ImportError(
+                "diffusers, transformers, torch, accelerate, and pillow are required for Horus Lens GGUF.\n"
+                "Install with:\n"
+                "  pip install \"neuralnode[horus]\"\n"
+                "or:\n"
+                "  pip install diffusers transformers torch accelerate pillow gguf"
+            )
+        if torch is None:
+            _refresh_transformers_imports()
+        if torch is None:
+            raise ImportError("torch is required for Horus Lens GGUF text-to-image generation.")
+
+        try:
+            import gguf
+        except ImportError:
+            if self.auto_install_deps:
+                ensure_feature_dependencies("horus_gguf", auto_install=True)
+                import importlib
+                importlib.invalidate_caches()
+                try:
+                    import gguf
+                except ImportError:
+                    raise ImportError(
+                        "The 'gguf' package was installed but could not be imported. "
+                        "Please restart your python process or run: pip install gguf"
+                    )
+            else:
+                raise ImportError(
+                    "The 'gguf' package is required to load GGUF models. "
+                    "Install with: pip install gguf"
+                )
+
+        # Force diffusers to recognize the newly installed gguf package.
+        # Guard against versions like 'N/A' (local/editable builds) that break
+        # packaging.version.parse and cause an InvalidVersion crash inside
+        # diffusers.quantizers.gguf.gguf_quantizer.validate_environment().
+        try:
+            import sys
+            import importlib.metadata
+            from packaging.version import Version
+            try:
+                raw_version = importlib.metadata.version("gguf")
+                # Validate the version string before injecting it.
+                Version(raw_version)
+                version = raw_version
+            except Exception:
+                # Fall back to a known-good sentinel that satisfies diffusers >= 0.10.0 check
+                version = "0.19.0"
+            if "diffusers.utils.import_utils" in sys.modules:
+                sys.modules["diffusers.utils.import_utils"]._gguf_available = True
+                sys.modules["diffusers.utils.import_utils"]._gguf_version = version
+            import diffusers.utils.import_utils as diffusers_import_utils
+            diffusers_import_utils._gguf_available = True
+            diffusers_import_utils._gguf_version = version
+        except Exception:
+            pass
+
+        repo_id, filename = self._split_repo_and_filename(self.model_id)
+        if not repo_id:
+            repo_id = "tokenaii/Horus-Lens-1.0-GGUF"
+
+        prev_disable_progress = os.environ.get("HF_HUB_DISABLE_PROGRESS_BARS")
+        if self.suppress_native_output:
+            os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
+
+        try:
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    message=r".*You are sending unauthenticated requests to the HF Hub.*",
+                )
+                model_path = hf_hub_download(
+                    repo_id=repo_id,
+                    filename=filename,
+                    cache_dir=self.cache_dir,
+                    local_files_only=self.local_files_only,
+                )
+        finally:
+            if self.suppress_native_output:
+                if prev_disable_progress is None:
+                    os.environ.pop("HF_HUB_DISABLE_PROGRESS_BARS", None)
+                else:
+                    os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = prev_disable_progress
+
+        # Load the GGUF transformer using diffusers
+        try:
+            from diffusers import ZImageTransformer2DModel
+        except ImportError:
+            try:
+                from diffusers.models.transformers.transformer_z_image import ZImageTransformer2DModel
+            except ImportError:
+                raise ImportError("ZImageTransformer2DModel is not available in the installed diffusers version.")
+
+        try:
+            from diffusers import GGUFQuantizationConfig
+        except ImportError:
+            try:
+                from diffusers.quantizers.gguf.gguf_quantizer import GGUFQuantizationConfig
+            except ImportError:
+                GGUFQuantizationConfig = None
+
+        compute_dtype = self._resolve_t2i_dtype() if self._user_specified_dtype is None else self.torch_dtype
+        if compute_dtype is None:
+            compute_dtype = torch.float32
+        
+        transformer_kwargs = {
+            "torch_dtype": compute_dtype,
+        }
+        if GGUFQuantizationConfig is not None:
+            transformer_kwargs["quantization_config"] = GGUFQuantizationConfig(compute_dtype=compute_dtype)
+
+        with self._quiet_native_output():
+            try:
+                transformer = ZImageTransformer2DModel.from_single_file(
+                    model_path,
+                    **transformer_kwargs
+                )
+            except Exception as exc:
+                # Try without quantization_config first (handles shape mismatch
+                # caused by mismatched ZImageTransformer2DModel config when
+                # the GGUF was built with a different architecture variant).
+                plain_kwargs = {"torch_dtype": compute_dtype}
+                try:
+                    transformer = ZImageTransformer2DModel.from_single_file(
+                        model_path,
+                        **plain_kwargs
+                    )
+                except Exception:
+                    # Last resort: allow size mismatch so at least something loads
+                    try:
+                        transformer = ZImageTransformer2DModel.from_single_file(
+                            model_path,
+                            ignore_mismatched_sizes=True,
+                            low_cpu_mem_usage=False,
+                            **plain_kwargs
+                        )
+                        logger.warning(
+                            "Loaded GGUF transformer with ignored size mismatches. "
+                            "Image quality may be degraded. Consider using the full (non-GGUF) "
+                            "Horus-Lens-1.0 model for best results."
+                        )
+                    except Exception:
+                        raise RuntimeError(
+                            f"Failed to load GGUF transformer from '{model_path}': {exc}\n"
+                            "Hint: The GGUF file may be incompatible with the installed diffusers "
+                            "version. Try: pip install --upgrade diffusers"
+                        )
+
+        base_repo_id = "tokenaii/Horus-Lens-1.0"
+        pipeline_kwargs: Dict[str, Any] = {
+            "cache_dir": self.cache_dir,
+            "local_files_only": self.local_files_only,
+            "trust_remote_code": self.trust_remote_code,
+            "token": self.token,
+            "horus_transformer": transformer,
+        }
+        if self.revision:
+            pipeline_kwargs["revision"] = self.revision
+        if self.variant:
+            pipeline_kwargs["variant"] = self.variant
+        t2i_dtype = self._resolve_t2i_dtype() if self._user_specified_dtype is None else self.torch_dtype
+        if t2i_dtype is not None:
+            pipeline_kwargs["torch_dtype"] = t2i_dtype
+
+        try:
+            try:
+                from diffusers import ZImagePipeline
+            except ImportError:
+                from diffusers.pipelines.z_image.pipeline_z_image import ZImagePipeline
+
+            class PatchedZImagePipeline(ZImagePipeline):
+                def __init__(
+                    self,
+                    horus_scheduler,
+                    horus_text_encoder,
+                    horus_tokenizer,
+                    horus_transformer,
+                    horus_vae,
+                ):
+                    from diffusers import DiffusionPipeline
+                    DiffusionPipeline.__init__(self)
+                    self.register_modules(
+                        horus_scheduler=horus_scheduler,
+                        horus_text_encoder=horus_text_encoder,
+                        horus_tokenizer=horus_tokenizer,
+                        horus_transformer=horus_transformer,
+                        horus_vae=horus_vae,
+                    )
+                    self.scheduler = horus_scheduler
+                    self.text_encoder = horus_text_encoder
+                    self.tokenizer = horus_tokenizer
+                    self.transformer = horus_transformer
+                    self.vae = horus_vae
+
+                    # Initialize VAE scale factor and image processor
+                    vae_scale = 8
+                    if hasattr(self, "vae") and self.vae is not None:
+                        if hasattr(self.vae, "config") and getattr(self.vae.config, "block_out_channels", None) is not None:
+                            vae_scale = 2 ** (len(self.vae.config.block_out_channels) - 1)
+                    self.vae_scale_factor = vae_scale
+                    
+                    from diffusers.image_processor import VaeImageProcessor
+                    self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor * 2)
+            
+            with self._quiet_native_output():
+                self.model = PatchedZImagePipeline.from_pretrained(
+                    base_repo_id,
+                    **pipeline_kwargs
+                )
+        except Exception:
+            pipeline_kwargs["transformer"] = transformer
+            with self._quiet_native_output():
+                self.model = DiffusionPipeline.from_pretrained(base_repo_id, **pipeline_kwargs)
+
+        self._finalize_t2i_pipeline()
+        return self
+
+    def _finalize_t2i_pipeline(self) -> None:
+        """Post-load hardening shared by both standard and GGUF Lens paths.
+
+        1. Move pipeline to self.device
+        2. Upcast VAE to float32 to prevent decoding NaN (essential on float16 pipelines)
+        3. Enable attention slicing for lower peak VRAM
+        4. Suppress progress bars if requested
+        """
+        if self.model is None:
+            return
+        if hasattr(self.model, "to"):
+            self.model = self.model.to(self.device)
+        # Always keep VAE in float32 — ZImage VAE overflows in fp16/bf16 decoding
+        if hasattr(self.model, "vae") and self.model.vae is not None:
+            self.model.vae.to(dtype=torch.float32)
+            # Tell the pipeline to upcast latents before passing them to the VAE
+            if hasattr(self.model.vae, "config"):
+                self.model.vae.config.force_upcast = True
+        # Reduce peak VRAM by slicing attention — negligible speed impact
+        if hasattr(self.model, "enable_attention_slicing"):
+            try:
+                self.model.enable_attention_slicing()
+            except Exception:
+                pass
+        if hasattr(self.model, "set_progress_bar_config") and self.suppress_native_output:
+            self.model.set_progress_bar_config(disable=True)
 
     def _load_gguf(self) -> "HorusProvider":
         if not HF_HUB_AVAILABLE and self.auto_install_deps:
@@ -454,7 +984,7 @@ class HorusProvider(BaseLLMProvider):
                 "  pip install \"neuralnode[horus]\"\n"
                 "or:\n"
                 "  pip install llama-cpp-python\n"
-                "Tip: runtime auto-install is disabled by default for Horus (auto_install_deps=False)."
+                "Tip: runtime auto-install is enabled by default for Horus (auto_install_deps=True)."
             )
 
         repo_id, filename = self._split_repo_and_filename(self.model_id)
@@ -471,23 +1001,24 @@ class HorusProvider(BaseLLMProvider):
             prev_disable_progress = os.environ.get("HF_HUB_DISABLE_PROGRESS_BARS")
             if self.suppress_native_output:
                 os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore",
-                    message=r".*You are sending unauthenticated requests to the HF Hub.*",
-                )
-                model_path = hf_hub_download(
-                    repo_id=repo_id,
-                    filename=filename,
-                    cache_dir=self.cache_dir,
-                    local_files_only=self.local_files_only,
-                    token=self.token,
-                )
-            if self.suppress_native_output:
-                if prev_disable_progress is None:
-                    os.environ.pop("HF_HUB_DISABLE_PROGRESS_BARS", None)
-                else:
-                    os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = prev_disable_progress
+            try:
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore",
+                        message=r".*You are sending unauthenticated requests to the HF Hub.*",
+                    )
+                    model_path = hf_hub_download(
+                        repo_id=repo_id,
+                        filename=filename,
+                        cache_dir=self.cache_dir,
+                        local_files_only=self.local_files_only,
+                    )
+            finally:
+                if self.suppress_native_output:
+                    if prev_disable_progress is None:
+                        os.environ.pop("HF_HUB_DISABLE_PROGRESS_BARS", None)
+                    else:
+                        os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = prev_disable_progress
 
         llama_kwargs: Dict[str, Any] = {
             "model_path": model_path,
@@ -594,10 +1125,9 @@ class HorusProvider(BaseLLMProvider):
             "proxies": self.proxies,
             "force_download": self.force_download,
             "resume_download": self.resume_download,
+            "token": self.token,
             "use_fast": True,
         }
-        if self.token:
-            tokenizer_kwargs["token"] = self.token
         if resolved_subfolder:
             tokenizer_kwargs["subfolder"] = resolved_subfolder
         if self.revision:
@@ -622,9 +1152,8 @@ class HorusProvider(BaseLLMProvider):
             "use_safetensors": self.use_safetensors,
             "proxies": self.proxies,
             "force_download": self.force_download,
+            "token": self.token,
         }
-        if self.token:
-            model_kwargs["token"] = self.token
         if resolved_subfolder:
             model_kwargs["subfolder"] = resolved_subfolder
         if self.revision:
@@ -639,6 +1168,9 @@ class HorusProvider(BaseLLMProvider):
             model_kwargs["device_map"] = self.device_map
         if self.max_memory:
             model_kwargs["max_memory"] = self.max_memory
+        elif self.device == "cuda" and not self.device_map and not self.load_in_4bit and not self.load_in_8bit:
+            # Avoid moving the full safetensors model to GPU in one shot on 16 GB cards.
+            model_kwargs["device_map"] = "auto"
 
         if self.load_in_4bit or self.load_in_8bit:
             try:
@@ -670,17 +1202,43 @@ class HorusProvider(BaseLLMProvider):
                 fallback_kwargs = dict(model_kwargs)
                 fallback_kwargs.pop("dtype", None)
                 fallback_kwargs["torch_dtype"] = self.torch_dtype
-                self.model = AutoModelForCausalLM.from_pretrained(repo_id, **fallback_kwargs)
+                try:
+                    self.model = AutoModelForCausalLM.from_pretrained(repo_id, **fallback_kwargs)
+                except Exception as retry_exc:
+                    raise RuntimeError(
+                        f"Failed to load Horus transformers model from '{repo_id}'. "
+                        "Try GGUF for lower VRAM usage or enable 4-bit loading."
+                    ) from retry_exc
             else:
                 raise RuntimeError(
                     f"Failed to load Horus transformers model from '{repo_id}'. "
                     "This Horus variant may require GGUF runtime; try one of the GGUF model ids."
                 ) from exc
         except Exception as exc:
-            raise RuntimeError(
-                f"Failed to load Horus transformers model from '{repo_id}'. "
-                "This Horus variant may require GGUF runtime; try one of the GGUF model ids."
-            ) from exc
+            if self._is_cuda_oom(exc) and self.device == "cuda":
+                self._clear_cuda_cache()
+                cpu_fallback_kwargs = dict(model_kwargs)
+                cpu_fallback_kwargs.pop("device_map", None)
+                cpu_fallback_kwargs.pop("max_memory", None)
+                cpu_fallback_kwargs["dtype"] = torch.float32 if torch is not None else None
+                try:
+                    self.device = "cpu"
+                    self.torch_dtype = torch.float32 if torch is not None else self.torch_dtype
+                    self.model = AutoModelForCausalLM.from_pretrained(repo_id, **cpu_fallback_kwargs)
+                    self._warn(
+                        "Horus CUDA load ran out of memory and fell back to CPU. "
+                        "Use GGUF or 4-bit loading for better local performance."
+                    )
+                except Exception as cpu_exc:
+                    raise RuntimeError(
+                        f"Failed to load Horus transformers model from '{repo_id}' on GPU due to CUDA OOM, "
+                        "and CPU fallback also failed. Use a GGUF model id or enable 4-bit loading."
+                    ) from cpu_exc
+            else:
+                raise RuntimeError(
+                    f"Failed to load Horus transformers model from '{repo_id}'. "
+                    "This Horus variant may require GGUF runtime; try one of the GGUF model ids."
+                ) from exc
         if "device_map" not in model_kwargs:
             self.model = self.model.to(self.device)
         self.model.eval()
@@ -909,9 +1467,53 @@ class HorusProvider(BaseLLMProvider):
         return any(marker in q for marker in identity_markers)
 
     @staticmethod
+    def _is_greeting(user_text: str) -> bool:
+        q = (user_text or "").strip().lower()
+        normalized = re.sub(r"[^\w\u0600-\u06FF\s]", " ", q)
+        normalized = re.sub(r"\s+", " ", normalized).strip()
+        greeting_markers = {
+            "hi",
+            "hello",
+            "hey",
+            "hi there",
+            "hello there",
+            "good morning",
+            "good afternoon",
+            "good evening",
+            "اهلا",
+            "أهلا",
+            "مرحبا",
+            "السلام عليكم",
+            "سلام",
+        }
+        return normalized in greeting_markers
+
+    @staticmethod
+    def _remove_leading_identity_sentences(text: str) -> str:
+        patterns = [
+            r"^\s*(?:hi|hello|hey)[,!\.\s]+i(?:\s*am|'m)\s+horus,\s*an ai (?:assistant|model)\s+developed by tokenai\.?\s*",
+            r"^\s*(?:hi|hello|hey)[,!\.\s]+i(?:\s*am|'m)\s+horus,\s*developed by tokenai\.?\s*",
+            r"^\s*(?:hi|hello|hey)[,!\.\s]+i(?:\s*am|'m)\s+horus\.?\s*",
+            r"^\s*i(?:\s*am|'m)\s+horus,\s*an ai (?:assistant|model)\s+developed by tokenai\.?\s*",
+            r"^\s*i(?:\s*am|'m)\s+horus,\s*developed by tokenai\.?\s*",
+            r"^\s*i(?:\s*am|'m)\s+horus\.?\s*",
+            r"^\s*(?:مرحبا|اهلا|أهلا|السلام عليكم|سلام)[،!,\.\s]+(?:أنا\s+)?horus[^.!\n]*[.!\n]\s*",
+            r"^\s*(?:أنا\s+)?horus[^.!\n]*tokenai[^.!\n]*[.!\n]\s*",
+        ]
+        cleaned = text.strip()
+        for pattern in patterns:
+            cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
+        return cleaned.strip()
+
+    @staticmethod
     def _strip_redundant_identity_prefix(text: str) -> str:
         patterns = [
+            r"^\s*(?:hi|hello|hey)[,!\.\s]+i(?:\s*am|'m)\s+horus,\s*an ai (?:assistant|model)\s+developed by tokenai\.?\s*",
+            r"^\s*(?:hi|hello|hey)[,!\.\s]+i(?:\s*am|'m)\s+horus,\s*developed by tokenai\.?\s*",
+            r"^\s*(?:hi|hello|hey)[,!\.\s]+i(?:\s*am|'m)\s+horus\.?\s*",
             r"^\s*i(?:\s*am|'m)\s+horus,\s*an ai model developed by tokenai\.?\s*",
+            r"^\s*i(?:\s*am|'m)\s+horus,\s*an ai assistant developed by tokenai\.?\s*",
+            r"^\s*i(?:\s*am|'m)\s+horus,\s*developed by tokenai\.?\s*",
             r"^\s*i(?:\s*am|'m)\s+horus\.?\s*",
             r"^\s*أنا\s+horus[^.!\n]*[.!\n]\s*",
         ]
@@ -919,6 +1521,104 @@ class HorusProvider(BaseLLMProvider):
         for pattern in patterns:
             cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
         return cleaned.strip() or text
+
+    def _postprocess_assistant_text(self, text: str, user_text: str = "") -> str:
+        cleaned = self._clean_generated_text(text)
+        if self._is_identity_question(user_text):
+            return cleaned
+
+        cleaned = self._remove_leading_identity_sentences(cleaned)
+        cleaned = self._strip_redundant_identity_prefix(cleaned)
+
+        if self._is_greeting(user_text) and not cleaned.strip():
+            if re.search(r"[\u0600-\u06FF]", user_text or ""):
+                return "أهلا! كيف يمكنني مساعدتك؟"
+            return "Hello! How can I help you?"
+        return cleaned
+
+    def generate_image(
+        self,
+        prompt: str,
+        output_path: Optional[str] = None,
+        negative_prompt: Optional[str] = None,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
+        num_inference_steps: int = 30,
+        guidance_scale: float = 7.5,
+        seed: Optional[int] = None,
+        **kwargs,
+    ) -> Any:
+        """Generate an image with a Horus text-to-image model and optionally save it."""
+        is_t2i = self._is_text_to_image_model_id(self.model_id) or self._is_gguf_text_to_image_model_id(self.model_id)
+        if not is_t2i:
+            raise RuntimeError("generate_image is only available for Horus text-to-image models.")
+        self.load()
+        if self.model is None:
+            raise RuntimeError("Horus text-to-image model is not loaded.")
+
+        # ── stable-diffusion-cpp backend ──────────────────────────────
+        if getattr(self, "_gguf_sd_backend", None) == "stable_diffusion_cpp":
+            images = self.model.txt_to_img(
+                prompt=prompt,
+                negative_prompt=negative_prompt or "",
+                width=width or 512,
+                height=height or 512,
+                sample_steps=num_inference_steps,
+                cfg_scale=guidance_scale,
+                seed=int(seed) if seed is not None else -1,
+            )
+            if not images:
+                raise RuntimeError("GGUF text-to-image generation did not return an image.")
+            image = images[0]
+            if output_path:
+                path = Path(output_path)
+                path.parent.mkdir(parents=True, exist_ok=True)
+                image.save(path)
+            return image
+
+        # ── diffusers backend (full model or GGUF-via-diffusers) ──────
+        call_kwargs: Dict[str, Any] = {
+            "prompt": prompt,
+            "num_inference_steps": num_inference_steps,
+            "guidance_scale": guidance_scale,
+            **kwargs,
+        }
+        if negative_prompt:
+            call_kwargs["negative_prompt"] = negative_prompt
+        if width is not None:
+            call_kwargs["width"] = int(width)
+        if height is not None:
+            call_kwargs["height"] = int(height)
+        if seed is not None and torch is not None:
+            generator_device = self.device if self.device == "cuda" else "cpu"
+            call_kwargs["generator"] = torch.Generator(device=generator_device).manual_seed(int(seed))
+
+        with self._quiet_native_output():
+            result = self.model(**call_kwargs)
+        images = getattr(result, "images", None)
+        if not images:
+            raise RuntimeError("Horus text-to-image generation did not return an image.")
+        image = images[0]
+
+        # ── Black-image / NaN guard ─────────────────────────────────────
+        try:
+            import numpy as np
+            arr = np.asarray(image)
+            if arr.max() == 0:
+                logger.warning(
+                    "Horus Lens generated an all-black image. This usually means the "
+                    "transformer produced NaN values due to float16 overflow. "
+                    "Try loading with torch_dtype='bfloat16' (Ampere+ GPUs) "
+                    "or torch_dtype='float32' (Tesla T4 / GTX 16xx)."
+                )
+        except Exception:
+            pass
+
+        if output_path:
+            path = Path(output_path)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            image.save(path)
+        return image
 
     def chat(
         self,
@@ -936,22 +1636,31 @@ class HorusProvider(BaseLLMProvider):
         response_format: Optional[Dict] = None,
         **kwargs,
     ) -> Union[LLMResponse, Iterator[StreamingChunk]]:
+        if self._is_text_to_image_model_id(self.model_id):
+            raise RuntimeError("Horus Lens is a text-to-image model. Use generate_image(prompt) instead of chat().")
+
         normalized = self._normalize_messages(messages)
         
         # Add tool descriptions to system prompt if tools are provided
         if tools:
             tool_desc = self._format_tool_descriptions(tools)
+            tool_section = (
+                "\n\nAvailable tools:\n"
+                + tool_desc
+                + "\n\nTo call a tool, respond with valid JSON: "
+                  '{"tool": "<name>", "arguments": {"<param>": "<value>"}}'
+            )
             # Find system message or add one
             has_system = False
             for m in normalized:
                 if m["role"] == "system":
-                    m["content"] = m["content"] + "\n\n" + TOOL_CALLING_PROMPT.format(tool_descriptions=tool_desc)
+                    m["content"] = m["content"] + tool_section
                     has_system = True
                     break
             if not has_system:
                 normalized.insert(0, {
                     "role": "system",
-                    "content": UNIFIED_SYSTEM_PROMPT + "\n\n" + TOOL_CALLING_PROMPT.format(tool_descriptions=tool_desc)
+                    "content": UNIFIED_SYSTEM_PROMPT + tool_section
                 })
         
         prompt = self._render_prompt(normalized)
@@ -976,8 +1685,7 @@ class HorusProvider(BaseLLMProvider):
             if m.get("role") == "user":
                 last_user_message = m.get("content", "")
                 break
-        if not self._is_identity_question(last_user_message):
-            content = self._strip_redundant_identity_prefix(content)
+        content = self._postprocess_assistant_text(content, last_user_message)
 
         # Parse tool calls from response if tools were provided
         tool_calls = []
@@ -995,18 +1703,32 @@ class HorusProvider(BaseLLMProvider):
         )
 
     async def achat(self, messages: List[Dict[str, Any]], **kwargs) -> Union[LLMResponse, Iterator[StreamingChunk]]:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, lambda: self.chat(messages, **kwargs))
 
     def complete(self, prompt: str, model: Optional[str] = None, **kwargs) -> LLMResponse:
         return self.chat([{"role": "user", "content": prompt}], model=model, **kwargs)
 
     def stream_chat(self, messages: List[Dict[str, str]], **kwargs) -> Iterator[StreamingChunk]:
+        if self._is_text_to_image_model_id(self.model_id):
+            raise RuntimeError("Horus Lens is a text-to-image model. Use generate_image(prompt) instead of stream_chat().")
+
         normalized = self._normalize_messages(messages)
         prompt = self._render_prompt(normalized)
 
         if self._is_gguf_model_id(self.model_id):
-            yield StreamingChunk(content=self._generate_gguf_text(prompt, **kwargs), is_finished=True)
+            last_user_message = ""
+            for message in reversed(normalized):
+                if message.get("role") == "user":
+                    last_user_message = message.get("content", "")
+                    break
+            yield StreamingChunk(
+                content=self._postprocess_assistant_text(
+                    self._generate_gguf_text(prompt, **kwargs),
+                    last_user_message,
+                ),
+                is_finished=True,
+            )
             return
 
         self.load()
@@ -1109,8 +1831,7 @@ class HorusProvider(BaseLLMProvider):
     
     async def aembed(self, texts: Union[str, List[str]], model: Optional[str] = None, **kwargs) -> Union[List[float], List[List[float]]]:
         """Async version of embed - runs in executor."""
-        import asyncio
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, lambda: self.embed(texts, model=model, **kwargs))
 
     def get_model_info(self) -> Dict[str, Any]:
@@ -1398,10 +2119,23 @@ class HorusModel(HorusProvider):
 
 
 Horus = HorusModel
+HorusLensModel = HorusModel
 
 
 def load_horus(model_id: str = "tokenaii/horus", **kwargs) -> HorusProvider:
     return HorusProvider(model_id=model_id, **kwargs).load()
 
 
-__all__ = ["HorusProvider", "HorusModel", "Horus", "load_horus", "print_model_list"]
+def load_horus_lens(model_id: str = "tokenaii/Horus-Lens-1.0", **kwargs) -> HorusProvider:
+    return HorusProvider(model_id=model_id, **kwargs).load()
+
+
+__all__ = [
+    "HorusProvider",
+    "HorusModel",
+    "HorusLensModel",
+    "Horus",
+    "load_horus",
+    "load_horus_lens",
+    "print_model_list",
+]

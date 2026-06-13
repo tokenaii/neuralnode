@@ -38,10 +38,11 @@ from .chat import (
     AI21ChatProvider,
     TogetherChatProvider,
     FireworksChatProvider,
-)
-from .chat_models import (
     BedrockChatProvider,
     VertexAIChatProvider,
+    OpenAIChatProvider,
+    OpenRouterChatProvider,
+    AgentRouterChatProvider,
 )
 
 # Aliases for backward compatibility
@@ -51,6 +52,9 @@ CohereProvider = CohereChatProvider
 MistralProvider = MistralChatProvider
 GroqProvider = GroqChatProvider
 DeepSeekProvider = DeepSeekChatProvider
+OpenAIProvider = OpenAIChatProvider
+OpenRouterProvider = OpenRouterChatProvider
+AgentRouterProvider = AgentRouterChatProvider
 
 # ── Text Generation Providers ──────────────────────────────────────────────────
 from .text_generation import (
@@ -108,12 +112,15 @@ from .universal_local import UniversalLocalProvider, load_local_model
 
 # ── Custom Model Providers ─────────────────────────────────────────────────────
 try:
-    from .horus import HorusProvider, HorusModel, Horus, load_horus
+    from .horus import HorusProvider, HorusModel, HorusLensModel, Horus, load_horus, load_horus_lens, print_model_list
 except ImportError:
     HorusProvider = None  # type: ignore
     HorusModel = None  # type: ignore
+    HorusLensModel = None  # type: ignore
     Horus = None  # type: ignore
     load_horus = None  # type: ignore
+    load_horus_lens = None  # type: ignore
+    print_model_list = None  # type: ignore
 
 # MLX Provider (Apple Silicon — optional)
 try:
@@ -150,6 +157,9 @@ _PROVIDER_MAP = {
     "fireworks":  FireworksChatProvider,
     "bedrock":    BedrockChatProvider,
     "vertexai":   VertexAIChatProvider,
+    "openai":     OpenAIChatProvider,
+    "openrouter": OpenRouterChatProvider,
+    "agentrouter": AgentRouterChatProvider,
     # Local
     "ollama":        OllamaProvider,
     "llamacpp":      LlamaCppProvider,
@@ -195,8 +205,11 @@ __all__ = [
     "BaseLLMProvider", "BaseProvider",
     "ProviderCapabilities", "ProviderType", "ModelType", "ModelInfo",
     "ProviderRegistry",
-    "create_provider", "auto_select_provider",
-    "get_available_providers", "get_provider_info", "validate_provider_config",
+    "create_provider",
+    "auto_select_provider",
+    "get_available_providers",
+    "get_provider_info",
+    "validate_provider_config",
     "is_local_provider",
 
     # Chat providers
@@ -204,11 +217,13 @@ __all__ = [
     "MistralChatProvider", "GroqChatProvider", "DeepSeekChatProvider",
     "PerplexityChatProvider", "AI21ChatProvider",
     "TogetherChatProvider", "FireworksChatProvider", "BedrockChatProvider",
-    "VertexAIChatProvider",
+    "VertexAIChatProvider", "OpenAIChatProvider", "OpenRouterChatProvider",
+    "AgentRouterChatProvider",
 
     # Aliases
     "AnthropicProvider", "GoogleProvider", "GroqProvider",
     "MistralProvider", "CohereProvider", "DeepSeekProvider",
+    "OpenAIProvider", "OpenRouterProvider", "AgentRouterProvider",
 
     # Text Generation
     "HuggingFaceTextProvider", "AI21TextProvider", "CohereTextProvider",
@@ -235,5 +250,5 @@ __all__ = [
     "UniversalLocalProvider", "load_local_model",
     
     # Custom Models
-    "HorusProvider", "HorusModel", "Horus", "load_horus",
+    "HorusProvider", "HorusModel", "HorusLensModel", "Horus", "load_horus", "load_horus_lens", "print_model_list",
 ]

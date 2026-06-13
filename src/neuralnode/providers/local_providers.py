@@ -12,8 +12,7 @@ from typing import Any, Dict, List, Optional, Union, Iterator, AsyncIterator
 from abc import abstractmethod
 from pathlib import Path
 
-from .base import BaseLLMProvider, ProviderCapabilities, ProviderType, ModelType, ModelInfo, ProviderRegistry
-from .chat_models import BaseChatProvider
+from .base import BaseLLMProvider, ProviderCapabilities, ProviderType, ModelType, ModelInfo, ProviderRegistry, BaseChatProvider
 from ..turboquant import TURBOQUANT_AVAILABLE, TurboQuant, TurboQuantConfig
 
 logger = logging.getLogger(__name__)

@@ -42,7 +42,7 @@ Quick Start::
     text = sr.listen()
 """
 
-__version__ = "2.1.0"
+__version__ = "2.2.0"
 __author__ = "NeuralNode Contributors"
 
 # ── Core types ────────────────────────────────────────────────────────────────
@@ -83,8 +83,11 @@ from .providers import (
     UniversalLocalProvider,
     # Custom models
     Horus,
+    HorusLensModel,
     HorusModel,
     HorusProvider,
+    load_horus_lens,
+    print_model_list,
 )
 
 # ── Memory ────────────────────────────────────────────────────────────────────
@@ -187,9 +190,6 @@ try:
 except ImportError:
     _THINKING_AVAILABLE = False
 
-# OpenAI blocker
-from .core.openai_blocker import check_openai_blocked
-
 # Chains module
 try:
     from .chains import (
@@ -225,6 +225,26 @@ try:
     _SLACK_AVAILABLE = True
 except ImportError:
     _SLACK_AVAILABLE = False
+
+try:
+    from .integrations.whatsapp import (
+        EvolutionWhatsAppBot,
+        TwilioWhatsAppBot,
+        create_twilio_whatsapp_bot,
+    )
+    _WHATSAPP_AVAILABLE = True
+except ImportError:
+    _WHATSAPP_AVAILABLE = False
+
+try:
+    from .integrations.openclaw import (
+        OpenClawManager,
+        OpenClawServer,
+        OpenClawClient,
+    )
+    _OPENCLAW_AVAILABLE = True
+except ImportError:
+    _OPENCLAW_AVAILABLE = False
 
 # Logging helper
 from .utils.logger import get_logger, setup_logging
@@ -286,7 +306,8 @@ class NeuralNode:
 
     Example::
 
-        # OpenAI is blocked — use any of these instead:
+        # OpenAI is fully supported — use any of these:
+        ai = NeuralNode(provider="openai")                # OpenAI GPT-4o/mini
         ai = NeuralNode(provider="anthropic")             # Claude
         ai = NeuralNode(provider="google")                # Gemini
         ai = NeuralNode(provider="groq")                  # Groq
@@ -304,13 +325,6 @@ class NeuralNode:
         model_settings: dict = None,
         **kwargs,
     ):
-        # Block OpenAI before doing anything else
-        check_openai_blocked(
-            provider=provider,
-            model=model,
-            api_key=api_key,
-        )
-
         self.provider_name = provider.lower()
         self.model = model
         self.system_prompt = system_prompt or "You are a helpful AI assistant."
@@ -648,7 +662,7 @@ __all__ = [
     "OllamaProvider", "AnthropicProvider", "GoogleProvider",
     "GroqProvider", "MistralProvider", "CohereProvider", "DeepSeekProvider",
     "LlamaCppProvider", "TransformersProvider", "UniversalLocalProvider",
-    "Horus", "HorusModel", "HorusProvider",
+    "Horus", "HorusLensModel", "HorusModel", "HorusProvider", "load_horus_lens", "print_model_list",
 
     # Memory
     "ConversationMemory", "FileMemory", "SlidingWindowMemory", "SummaryMemory",
@@ -681,10 +695,8 @@ __all__ = [
     "RouterChain", "RetrievalQAChain", "TransformChain", "APIChain",
     "create_llm_chain", "create_sequential_chain", "create_retrieval_qa_chain",
 
-    # Utilities
     "get_logger", "setup_logging",
     "ensure_feature_dependencies",
-    "check_openai_blocked",
 ]
 
 # Add optional exports
@@ -718,3 +730,15 @@ if _TURBOQUANT_AVAILABLE:
     __all__ += ["TurboQuant", "TurboQuantEngine", "TurboQuantConfig"]
 if _THINKING_AVAILABLE:
     __all__ += ["ThinkingMode", "ThinkingResponse", "enable_thinking"]
+if _WHATSAPP_AVAILABLE:
+    __all__ += [
+        "EvolutionWhatsAppBot",
+        "TwilioWhatsAppBot",
+        "create_twilio_whatsapp_bot",
+    ]
+if _OPENCLAW_AVAILABLE:
+    __all__ += [
+        "OpenClawManager",
+        "OpenClawServer",
+        "OpenClawClient",
+    ]

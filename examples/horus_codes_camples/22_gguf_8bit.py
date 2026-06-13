@@ -6,7 +6,7 @@ Best for: Good quality with ~50% memory savings
 import neuralnode as nn
 
 model = nn.HorusModel(
-    "tokenaii/Hours-1.0-4B-GGUF/Horus-1.0-4B-Q8_0.gguf"
+    "tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q8_0.gguf"
 ).load()
 
 response = model.chat([{"role": "user", "content": "Hello!"}])

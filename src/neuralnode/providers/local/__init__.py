@@ -129,40 +129,57 @@ class ModelDownloader:
         
         return sorted(models, key=lambda x: x["name"])
     
+    def _resolve_model_url_and_filename(self, model_id: str) -> tuple[str, str]:
+        """Resolve model ID to download URL and filename."""
+        # 1. Registry models
+        model = self.registry.get_model(model_id)
+        if model:
+            filename = model.download_url.split('/')[-1]
+            return model.download_url, filename
+            
+        # 2. Direct URLs
+        if model_id.startswith(("http://", "https://")):
+            filename = model_id.split('/')[-1].split('?')[0]
+            return model_id, filename
+            
+        # 3. HuggingFace path: user/repo/file.gguf
+        parts = model_id.split('/')
+        if len(parts) >= 3 and parts[-1].lower().endswith(".gguf"):
+            repo = "/".join(parts[:-1])
+            filename = parts[-1]
+            url = f"https://huggingface.co/{repo}/resolve/main/{filename}"
+            return url, filename
+            
+        raise ValueError(
+            f"Unknown model registry ID, invalid URL, or invalid HuggingFace path format: {model_id}. "
+            "Use a registered ID, a direct GGUF URL, or 'username/repo/filename.gguf'."
+        )
+
     def is_downloaded(self, model_id: str) -> bool:
         """Check if a model is already downloaded."""
-        model = self.registry.get_model(model_id)
-        if not model:
+        try:
+            expected_path = self._get_model_path(model_id)
+            return expected_path.exists()
+        except ValueError:
             return False
-        
-        # Check for file by model name pattern
-        expected_path = self._get_model_path(model_id)
-        return expected_path.exists()
     
     def _get_model_path(self, model_id: str) -> Path:
         """Get the expected path for a model."""
-        model = self.registry.get_model(model_id)
-        if model:
-            # Use the filename from URL
-            filename = model.download_url.split('/')[-1]
-            return self.cache_dir / filename
-        return self.cache_dir / f"{model_id}.gguf"
+        _, filename = self._resolve_model_url_and_filename(model_id)
+        return self.cache_dir / filename
     
     def download(
         self,
         model_id: str,
         progress_callback: Optional[callable] = None
     ) -> str:
-        """Download a model from the registry.
+        """Download a model from the registry, direct URL, or HuggingFace repo.
         
         Returns:
             Path to downloaded model file
         """
-        model = self.registry.get_model(model_id)
-        if not model:
-            raise ValueError(f"Unknown model: {model_id}")
-        
-        output_path = self._get_model_path(model_id)
+        download_url, filename = self._resolve_model_url_and_filename(model_id)
+        output_path = self.cache_dir / filename
         
         # Check if already exists
         if output_path.exists():
@@ -174,7 +191,7 @@ class ModelDownloader:
                 "User-Agent": "NeuralNode-Downloader/1.0"
             }
             
-            req = Request(model.download_url, headers=headers)
+            req = Request(download_url, headers=headers)
             
             with urlopen(req, context=self.ssl_context, timeout=60) as response:
                 total_size = int(response.headers.get('Content-Length', 0))

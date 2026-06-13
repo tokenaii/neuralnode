@@ -3,6 +3,7 @@ import json
 import logging
 import requests
 import subprocess
+import shlex
 from typing import Any, Dict, List, Optional, Union, Callable
 from pathlib import Path
 
@@ -315,8 +316,14 @@ class BashTool(BaseTool):
     name = "bash"
     description = "Execute bash commands"
     
+    SAFE_COMMANDS = {
+        "cat", "cd", "cls", "dir", "echo", "find", "git", "grep", "head",
+        "ls", "more", "node", "npm", "pip", "pwd", "python", "python3",
+        "pytest", "tail", "type", "where", "which", "whoami",
+    }
+
     def __init__(self, allowed_commands: Optional[List[str]] = None, timeout: int = 30):
-        self.allowed_commands = allowed_commands
+        self.allowed_commands = set(allowed_commands or self.SAFE_COMMANDS)
         self.timeout = timeout
     
     parameters = {
@@ -329,11 +336,16 @@ class BashTool(BaseTool):
 
     def execute(self, command: str, **kwargs) -> ToolResult:
         """Execute bash command."""
-        # Security check
-        if self.allowed_commands:
-            cmd_base = command.split()[0]
-            if cmd_base not in self.allowed_commands:
-                return ToolResult.error(f"Command '{cmd_base}' not allowed")
+        try:
+            cmd_parts = shlex.split(command)
+        except ValueError as exc:
+            return ToolResult.error(f"Invalid command syntax: {exc}")
+        if not cmd_parts:
+            return ToolResult.error("Empty command")
+
+        cmd_base = Path(cmd_parts[0]).name.lower()
+        if cmd_base not in self.allowed_commands:
+            return ToolResult.error(f"Command '{cmd_base}' not allowed")
         
         # Block dangerous commands
         dangerous = ["rm -rf /", "> /dev/sda", "mkfs", "dd if=/dev/zero", ":(){:|:&};:"]
@@ -343,8 +355,8 @@ class BashTool(BaseTool):
         
         try:
             result = subprocess.run(
-                command,
-                shell=True,
+                cmd_parts,
+                shell=False,
                 capture_output=True,
                 text=True,
                 timeout=self.timeout

@@ -1,4 +1,4 @@
-# NeuralNode v3.1.0
+# NeuralNode v2.2.0
 
 NeuralNode is a Python AI framework focused on:
 - real cloud providers that are implemented
@@ -44,6 +44,8 @@ All Horus models use:
 - unified chat template: `horus_unified`
 - unified context window: `8192`
 
+Horus downloads are public-only. Private or gated Hugging Face repositories are not supported.
+
 ```python
 import neuralnode as nn
 
@@ -72,11 +74,25 @@ print(HorusModel.list_available_models())
 Supported IDs currently include:
 - `tokenaii/horus`
 - `tokenaii/horus/Horus-1.0-4B`
-- `tokenaii/Hours-1.0-4B-GGUF/Horus-1.0-4B-Q4_K_M.gguf`
-- `tokenaii/Hours-1.0-4B-GGUF/Horus-1.0-4B-Q5_K_M.gguf`
-- `tokenaii/Hours-1.0-4B-GGUF/Horus-1.0-4B-Q6_K.gguf`
-- `tokenaii/Hours-1.0-4B-GGUF/Horus-1.0-4B-Q8_0.gguf`
-- `tokenaii/Hours-1.0-4B-GGUF/Horus-1.0-4B-F16.gguf`
+- `tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q4_K_M.gguf`
+- `tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q5_K_M.gguf`
+- `tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q6_K.gguf`
+- `tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q8_0.gguf`
+- `tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-F16.gguf`
+- `tokenaii/Horus-Lens-1.0`
+
+### Horus Lens text-to-image
+
+```python
+import neuralnode as nn
+
+model = nn.HorusLensModel("tokenaii/Horus-Lens-1.0").load()
+model.generate_image(
+    "A detailed cinematic image of an ancient Egyptian AI lab, golden light",
+    output_path="outputs/horus_lens.png",
+    seed=42,
+)
+```
 
 ## Replica TTS
 
@@ -214,3 +230,16 @@ If the `turboquant` package is not installed or the backend cannot use it, Neura
 - OpenAI is intentionally blocked in NeuralNode.
 - GGUF Horus models require `llama-cpp-python`.
 - Horus downloads from Hugging Face require `huggingface_hub`.
+
+## OpenClaw Integration
+
+NeuralNode 2.2.0 introduces full end-to-end integration with OpenClaw. You can easily set up, start, and control OpenClaw directly through the framework.
+
+The integration operates by running a local FastAPI server in the background that exposes an OpenAI-compatible API to the OpenClaw Node gateway. This server proxies LLM requests directly to NeuralNode providers, allowing seamless interaction.
+
+It also fully supports the WhatsApp API, allowing users to activate it and bind it to their phone numbers entirely via code and OpenClaw.
+
+## Links
+
+- **TokenAI**: [https://tokenai.cloud/](https://tokenai.cloud/)
+- **NeuralNode**: [https://neuralnode.tokenai.cloud/](https://neuralnode.tokenai.cloud/)

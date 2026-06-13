@@ -103,6 +103,7 @@ Current Horus guarantees:
 - chat template is unified as `horus_unified`
 - Horus can use Replica TTS
 - Horus can use TurboQuant on Transformers-based generation paths
+- Horus downloads are public-only
 
 Example:
 
@@ -128,11 +129,25 @@ print(response.content)
 Available Horus model IDs:
 - `tokenaii/horus`
 - `tokenaii/horus/Horus-1.0-4B`
-- `tokenaii/Hours-1.0-4B-GGUF/Horus-1.0-4B-Q4_K_M.gguf`
-- `tokenaii/Hours-1.0-4B-GGUF/Horus-1.0-4B-Q5_K_M.gguf`
-- `tokenaii/Hours-1.0-4B-GGUF/Horus-1.0-4B-Q6_K.gguf`
-- `tokenaii/Hours-1.0-4B-GGUF/Horus-1.0-4B-Q8_0.gguf`
-- `tokenaii/Hours-1.0-4B-GGUF/Horus-1.0-4B-F16.gguf`
+- `tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q4_K_M.gguf`
+- `tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q5_K_M.gguf`
+- `tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q6_K.gguf`
+- `tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q8_0.gguf`
+- `tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-F16.gguf`
+- `tokenaii/Horus-Lens-1.0`
+
+Horus Lens text-to-image example:
+
+```python
+import neuralnode as nn
+
+model = nn.HorusLensModel("tokenaii/Horus-Lens-1.0").load()
+model.generate_image(
+    "A detailed cinematic image of an ancient Egyptian AI lab, golden light",
+    output_path="outputs/horus_lens.png",
+    seed=42,
+)
+```
 
 ## Replica
 

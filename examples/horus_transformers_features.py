@@ -292,21 +292,12 @@ def example_8_generation_params():
     print()
 
 
-def example_9_network_auth():
-    """Network and authentication options."""
+def example_9_network_options():
+    """Network and download options."""
     print("=" * 70)
-    print("Example 9: Network & Authentication")
+    print("Example 9: Network & Download Options")
     print("=" * 70)
-    
-    # With HuggingFace token (for private/gated models)
-    model_token = nn.HorusModel(
-        "tokenaii/horus",
-        token="hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-    ).load()
-    
-    # Via environment variable (recommended):
-    # export HF_TOKEN="your_token_here"
-    
+
     # With proxy
     model_proxy = nn.HorusModel(
         "tokenaii/horus",
@@ -328,7 +319,7 @@ def example_9_network_auth():
         resume_download=True,
     ).load()
     
-    print("[OK] Network & auth options demonstrated")
+    print("[OK] Network and download options demonstrated")
     print()
 
 
@@ -492,7 +483,7 @@ if __name__ == "__main__":
         # example_6_attention_options()
         # example_7_advanced_loading()
         # example_8_generation_params()
-        # example_9_network_auth()
+        # example_9_network_options()
         # example_10_model_info()
         example_11_list_models()
         # example_12_chat_templates()

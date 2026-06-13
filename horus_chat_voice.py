@@ -26,7 +26,7 @@ def play_audio(file_path):
 
 # Load Horus model
 model = nn.HorusModel(
-    model_id="tokenaii/Hours-1.0-4B-GGUF/Horus-1.0-4B-Q4_K_M.gguf"
+    model_id="tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q4_K_M.gguf"
 ).load()
 
 messages = [

@@ -105,7 +105,7 @@ def setup_neuralnode():
     print("✅ Setup complete! You can now use NeuralNode.")
     print("\nQuick start:")
     print("  import neuralnode as nn")
-    print("  ai = nn.NeuralNode(provider='openai')")
+    print("  ai = nn.NeuralNode(provider='groq', model='llama-3.1-8b-instant')")
     print("  print(ai.chat('Hello!'))")
     print("\nRun tests:")
     print("  pytest tests/ -v")

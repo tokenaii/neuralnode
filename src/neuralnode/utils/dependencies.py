@@ -21,6 +21,16 @@ FEATURE_DEPENDENCIES: Dict[str, List[Tuple[str, str]]] = {
     "horus_gguf": [
         ("llama_cpp", "llama-cpp-python>=0.2.0"),
         ("huggingface_hub", "huggingface_hub>=0.23.0"),
+        ("gguf", "gguf"),
+    ],
+    "horus_lens": [
+        ("torch", "torch>=2.0.0"),
+        ("diffusers", "diffusers>=0.30.0"),
+        ("transformers", "transformers>=4.35.0"),
+        ("accelerate", "accelerate>=0.24.0"),
+        ("PIL", "pillow>=10.0.0"),
+        ("huggingface_hub", "huggingface_hub>=0.23.0"),
+        ("gguf", "gguf"),
     ],
     "replica_tts": [
         ("edge_tts", "edge-tts>=6.1.0"),
@@ -77,4 +87,3 @@ def ensure_feature_dependencies(feature: str, auto_install: bool = True) -> bool
 
 
 __all__ = ["FEATURE_DEPENDENCIES", "ensure_feature_dependencies"]
-

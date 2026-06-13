@@ -5,6 +5,7 @@ import sys
 import subprocess
 import platform
 import logging
+import getpass
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -146,6 +147,15 @@ class SystemOperationsTool(BaseTool):
         "volume_set", "volume_mute", "brightness_set", "notify",
     }
 
+    @staticmethod
+    def _run(args: list[str], **kwargs) -> subprocess.CompletedProcess:
+        return subprocess.run(args, shell=False, check=False, **kwargs)
+
+    @staticmethod
+    def _clamp_percent(value) -> int:
+        level = int(value)
+        return max(0, min(100, level))
+
     def execute(
         self,
         operation: str,
@@ -170,21 +180,23 @@ class SystemOperationsTool(BaseTool):
     # ── Power operations ──────────────────────
 
     def _op_shutdown(self, value=None, delay=0) -> ToolResult:
+        minutes = str(max(int(delay) // 60, 0))
         if _OS == "windows":
-            os.system(f"shutdown /s /t {delay}")
+            self._run(["shutdown", "/s", "/t", str(max(int(delay), 0))])
         elif _OS == "linux":
-            os.system(f"shutdown -h +{delay // 60 or 0}")
+            self._run(["shutdown", "-h", f"+{minutes}"])
         elif _OS == "darwin":
-            os.system(f"sudo shutdown -h +{delay // 60 or 0}")
+            self._run(["sudo", "shutdown", "-h", f"+{minutes}"])
         return ToolResult.ok(f"Shutdown initiated (delay={delay}s).")
 
     def _op_restart(self, value=None, delay=0) -> ToolResult:
+        minutes = str(max(int(delay) // 60, 0))
         if _OS == "windows":
-            os.system(f"shutdown /r /t {delay}")
+            self._run(["shutdown", "/r", "/t", str(max(int(delay), 0))])
         elif _OS == "linux":
-            os.system(f"shutdown -r +{delay // 60 or 0}")
+            self._run(["shutdown", "-r", f"+{minutes}"])
         elif _OS == "darwin":
-            os.system(f"sudo shutdown -r +{delay // 60 or 0}")
+            self._run(["sudo", "shutdown", "-r", f"+{minutes}"])
         return ToolResult.ok(f"Restart initiated (delay={delay}s).")
 
     def _op_lock(self, value=None, delay=0) -> ToolResult:
@@ -192,9 +204,18 @@ class SystemOperationsTool(BaseTool):
             import ctypes
             ctypes.windll.user32.LockWorkStation()
         elif _OS == "linux":
-            os.system("loginctl lock-session || xdg-screensaver lock || gnome-screensaver-command -l")
+            for args in (
+                ["loginctl", "lock-session"],
+                ["xdg-screensaver", "lock"],
+                ["gnome-screensaver-command", "-l"],
+            ):
+                try:
+                    if self._run(args).returncode == 0:
+                        break
+                except FileNotFoundError:
+                    continue
         elif _OS == "darwin":
-            os.system("pmset displaysleepnow")
+            self._run(["pmset", "displaysleepnow"])
         return ToolResult.ok("Screen locked.")
 
     def _op_unlock(self, value=None, delay=0) -> ToolResult:
@@ -211,29 +232,32 @@ class SystemOperationsTool(BaseTool):
 
     def _op_sleep(self, value=None, delay=0) -> ToolResult:
         if _OS == "windows":
-            os.system("rundll32.exe powrprof.dll,SetSuspendState 0,1,0")
+            self._run(["rundll32.exe", "powrprof.dll,SetSuspendState", "0,1,0"])
         elif _OS == "linux":
-            os.system("systemctl suspend")
+            self._run(["systemctl", "suspend"])
         elif _OS == "darwin":
-            os.system("pmset sleepnow")
+            self._run(["pmset", "sleepnow"])
         return ToolResult.ok("System entering sleep mode.")
 
     def _op_hibernate(self, value=None, delay=0) -> ToolResult:
         if _OS == "windows":
-            os.system("shutdown /h")
+            self._run(["shutdown", "/h"])
         elif _OS == "linux":
-            os.system("systemctl hibernate")
+            self._run(["systemctl", "hibernate"])
         elif _OS == "darwin":
             return ToolResult.error("macOS does not support hibernate directly.")
         return ToolResult.ok("System entering hibernate mode.")
 
     def _op_logout(self, value=None, delay=0) -> ToolResult:
         if _OS == "windows":
-            os.system("shutdown /l")
+            self._run(["shutdown", "/l"])
         elif _OS == "linux":
-            os.system("loginctl terminate-user $(whoami) || pkill -KILL -u $(whoami)")
+            user = getpass.getuser()
+            result = self._run(["loginctl", "terminate-user", user])
+            if result.returncode != 0:
+                self._run(["pkill", "-KILL", "-u", user])
         elif _OS == "darwin":
-            os.system("osascript -e 'tell application \"System Events\" to log out'")
+            self._run(["osascript", "-e", 'tell application "System Events" to log out'])
         return ToolResult.ok("Logout initiated.")
 
     # ── Utility operations ────────────────────
@@ -256,10 +280,13 @@ class SystemOperationsTool(BaseTool):
                 except ImportError:
                     return ToolResult.error("Install pyautogui or Pillow for screenshots: pip install pyautogui")
             elif _OS == "linux":
-                os.system(f"scrot {output} || gnome-screenshot -f {output}")
+                try:
+                    subprocess.run(["scrot", output], check=True)
+                except Exception:
+                    subprocess.run(["gnome-screenshot", "-f", output], check=True)
                 return ToolResult.ok(f"Screenshot saved to {output}")
             elif _OS == "darwin":
-                os.system(f"screencapture {output}")
+                subprocess.run(["screencapture", output], check=True)
                 return ToolResult.ok(f"Screenshot saved to {output}")
             return ToolResult.error("pip install pyautogui for screenshots")
 
@@ -267,11 +294,11 @@ class SystemOperationsTool(BaseTool):
         if not value:
             return ToolResult.error("Specify the app name/path in the 'value' parameter.")
         if _OS == "windows":
-            os.system(f"start \"\" \"{value}\"")
+            os.startfile(value)  # type: ignore[attr-defined]
         elif _OS == "linux":
             subprocess.Popen([value], start_new_session=True)
         elif _OS == "darwin":
-            os.system(f"open -a \"{value}\"")
+            subprocess.Popen(["open", "-a", value], start_new_session=True)
         return ToolResult.ok(f"Opened application: {value}")
 
     def _op_clipboard_get(self, value=None, delay=0) -> ToolResult:
@@ -311,7 +338,7 @@ class SystemOperationsTool(BaseTool):
     def _op_volume_set(self, value=None, delay=0) -> ToolResult:
         if value is None:
             return ToolResult.error("Specify volume level (0-100) in the 'value' parameter.")
-        level = int(value)
+        level = self._clamp_percent(value)
         if _OS == "windows":
             try:
                 from ctypes import cast, POINTER
@@ -324,13 +351,13 @@ class SystemOperationsTool(BaseTool):
                 return ToolResult.ok(f"Volume set to {level}%.")
             except ImportError:
                 # Fallback using nircmd if available
-                os.system(f"nircmd.exe setsysvolume {int(level / 100 * 65535)}")
+                self._run(["nircmd.exe", "setsysvolume", str(int(level / 100 * 65535))])
                 return ToolResult.ok(f"Volume set to {level}% (via nircmd).")
         elif _OS == "linux":
-            os.system(f"amixer set Master {level}%")
+            self._run(["amixer", "set", "Master", f"{level}%"])
             return ToolResult.ok(f"Volume set to {level}%.")
         elif _OS == "darwin":
-            os.system(f"osascript -e 'set volume output volume {level}'")
+            self._run(["osascript", "-e", f"set volume output volume {level}"])
             return ToolResult.ok(f"Volume set to {level}%.")
         return ToolResult.error("Volume control not supported on this platform.")
 
@@ -348,20 +375,20 @@ class SystemOperationsTool(BaseTool):
                 state = "muted" if not current else "unmuted"
                 return ToolResult.ok(f"Volume {state}.")
             except ImportError:
-                os.system("nircmd.exe mutesysvolume 2")
+                self._run(["nircmd.exe", "mutesysvolume", "2"])
                 return ToolResult.ok("Volume mute toggled.")
         elif _OS == "linux":
-            os.system("amixer set Master toggle")
+            self._run(["amixer", "set", "Master", "toggle"])
             return ToolResult.ok("Volume mute toggled.")
         elif _OS == "darwin":
-            os.system("osascript -e 'set volume with output muted'")
+            self._run(["osascript", "-e", "set volume with output muted"])
             return ToolResult.ok("Volume mute toggled.")
         return ToolResult.error("Mute not supported on this platform.")
 
     def _op_brightness_set(self, value=None, delay=0) -> ToolResult:
         if value is None:
             return ToolResult.error("Specify brightness (0-100) in the 'value' parameter.")
-        level = int(value)
+        level = self._clamp_percent(value)
         if _OS == "windows":
             try:
                 import wmi
@@ -372,13 +399,16 @@ class SystemOperationsTool(BaseTool):
             except (ImportError, Exception):
                 # Fallback using PowerShell
                 ps = f"(Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightnessMethods).WmiSetBrightness(1,{level})"
-                os.system(f'powershell -Command "{ps}"')
+                self._run(["powershell", "-Command", ps])
                 return ToolResult.ok(f"Brightness set to {level}%.")
         elif _OS == "linux":
-            os.system(f"xrandr --output $(xrandr | grep ' connected' | head -1 | cut -d' ' -f1) --brightness {level / 100.0}")
+            try:
+                self._run(["brightnessctl", "set", f"{level}%"])
+            except FileNotFoundError:
+                return ToolResult.error("Install brightnessctl for Linux brightness control.")
             return ToolResult.ok(f"Brightness set to {level}%.")
         elif _OS == "darwin":
-            os.system(f"brightness {level / 100.0}")
+            self._run(["brightness", str(level / 100.0)])
             return ToolResult.ok(f"Brightness set to {level}%.")
         return ToolResult.error("Brightness control not supported on this platform.")
 
@@ -401,12 +431,12 @@ class SystemOperationsTool(BaseTool):
                     f"$toast = [Windows.UI.Notifications.ToastNotification]::new($template); "
                     f"[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('NeuralNode').Show($toast)"
                 )
-                os.system(f'powershell -Command "{ps}"')
+                self._run(["powershell", "-Command", ps])
                 return ToolResult.ok(f"Notification sent: {message}")
         elif _OS == "linux":
-            os.system(f'notify-send "NeuralNode" "{message}"')
+            self._run(["notify-send", "NeuralNode", message])
             return ToolResult.ok(f"Notification sent: {message}")
         elif _OS == "darwin":
-            os.system(f'osascript -e \'display notification "{message}" with title "NeuralNode"\'')
+            self._run(["osascript", "-e", f'display notification "{message}" with title "NeuralNode"'])
             return ToolResult.ok(f"Notification sent: {message}")
         return ToolResult.error("Notifications not supported on this platform.")

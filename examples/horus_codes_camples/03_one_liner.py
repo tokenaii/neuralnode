@@ -9,7 +9,7 @@ Choose your model version before running:
 import neuralnode as nn
 
 # One-liner: create model, load it, and chat in a single chain
-response = nn.HorusModel("tokenaii/Hours-1.0-4B-GGUF/Horus-1.0-4B-Q4_K_M.gguf").load().chat(
+response = nn.HorusModel("tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q4_K_M.gguf").load().chat(
     [{"role": "user", "content": "What is AI?"}]
 )
 

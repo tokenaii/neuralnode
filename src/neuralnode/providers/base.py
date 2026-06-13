@@ -230,6 +230,47 @@ class BaseLLMProvider(BaseProvider):
         raise
 
 
+class BaseChatProvider(BaseLLMProvider):
+    """Base class for chat model providers."""
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.model = self.model or getattr(self, "default_model", None)
+    
+    def _format_messages(self, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Format messages for provider. Override if needed."""
+        return messages
+    
+    def _parse_response(self, response: Dict[str, Any]) -> Dict[str, Any]:
+        """Parse provider response into standard format."""
+        return {
+            "content": response.get("content", ""),
+            "model": response.get("model", self.model),
+            "provider": getattr(self, "provider_name", "unknown"),
+            "usage": response.get("usage", {}),
+            "finish_reason": response.get("finish_reason"),
+            "tool_calls": response.get("tool_calls", []),
+        }
+
+    def embed(
+        self,
+        texts: Union[str, List[str]],
+        model: Optional[str] = None,
+        **kwargs
+    ) -> Union[List[float], List[List[float]]]:
+        """Generate embeddings (not supported by default for chat providers)."""
+        raise NotImplementedError(f"Embeddings are not supported by {self.provider_name or self.__class__.__name__}")
+
+    async def aembed(
+        self,
+        texts: Union[str, List[str]],
+        model: Optional[str] = None,
+        **kwargs
+    ) -> Union[List[float], List[List[float]]]:
+        """Async embeddings (not supported by default for chat providers)."""
+        raise NotImplementedError(f"Async embeddings are not supported by {self.provider_name or self.__class__.__name__}")
+
+
 class ProviderRegistry:
     """Registry for managing all providers."""
     
@@ -285,14 +326,6 @@ class ProviderRegistry:
 # Convenience functions
 def create_provider(name: str, **kwargs) -> BaseLLMProvider:
     """Create a provider instance by name."""
-    # Block OpenAI
-    from ..core.openai_blocker import check_openai_blocked
-    check_openai_blocked(
-        provider=name,
-        model=kwargs.get("model"),
-        api_key=kwargs.get("api_key"),
-        base_url=kwargs.get("base_url"),
-    )
     return ProviderRegistry.create_provider(name, **kwargs)
 
 
@@ -342,6 +375,7 @@ def auto_select_provider(prefer_local: bool = False) -> BaseLLMProvider:
 # Backwards compatibility - re-export core types
 __all__ = [
     "BaseLLMProvider",
+    "BaseChatProvider",
     "ProviderCapabilities",
     "ProviderType",
     "ModelType",

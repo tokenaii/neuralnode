@@ -331,6 +331,68 @@ class WebLoader(BaseDocumentLoader):
         return str(source).startswith(("http://", "https://"))
 
 
+class CSVLoader(BaseDocumentLoader):
+    """Load CSV files dict-by-dict."""
+
+    def load(self, source: Union[str, Path]) -> List[Document]:
+        import csv
+        path = Path(source)
+        if not path.exists():
+            return []
+        documents = []
+        try:
+            with open(path, 'r', encoding='utf-8', errors='ignore', newline='') as f:
+                reader = csv.DictReader(f)
+                for i, row in enumerate(reader):
+                    content = "\n".join([f"{k}: {v}" for k, v in row.items()])
+                    documents.append(Document(
+                        content=content,
+                        source=str(path),
+                        metadata={"source": str(path), "row": i, "type": "csv", **row}
+                    ))
+            return documents
+        except Exception as e:
+            logger.error(f"Failed to load CSV {path}: {e}")
+            return []
+
+    def supports(self, source: Union[str, Path]) -> bool:
+        return Path(source).suffix.lower() == ".csv"
+
+
+class JSONLoader(BaseDocumentLoader):
+    """Load JSON files parsing arrays modularly."""
+
+    def load(self, source: Union[str, Path]) -> List[Document]:
+        path = Path(source)
+        if not path.exists():
+            return []
+        try:
+            content = path.read_text(encoding="utf-8", errors="ignore")
+            data = json.loads(content)
+            documents = []
+            if isinstance(data, list):
+                for i, item in enumerate(data):
+                    item_str = json.dumps(item, indent=2) if isinstance(item, (dict, list)) else str(item)
+                    documents.append(Document(
+                        content=item_str,
+                        source=str(path),
+                        metadata={"source": str(path), "index": i, "type": "json"}
+                    ))
+            else:
+                documents.append(Document(
+                    content=json.dumps(data, indent=2),
+                    source=str(path),
+                    metadata={"source": str(path), "type": "json"}
+                ))
+            return documents
+        except Exception as e:
+            logger.error(f"Failed to load JSON {path}: {e}")
+            return []
+
+    def supports(self, source: Union[str, Path]) -> bool:
+        return Path(source).suffix.lower() == ".json"
+
+
 class DocumentLoader:
     """Universal document loader with auto-detection.
 
@@ -344,7 +406,7 @@ class DocumentLoader:
 
     def __init__(self):
         self.loaders: List[BaseDocumentLoader] = [
-            TextLoader(), PDFLoader(), DocxLoader(), WebLoader()
+            TextLoader(), PDFLoader(), DocxLoader(), WebLoader(), CSVLoader(), JSONLoader()
         ]
         self.logger = get_logger()
 
@@ -361,16 +423,16 @@ class DocumentLoader:
         recursive: bool = True,
     ) -> List[Document]:
         path = Path(directory)
-        if not path.exists():
-            raise FileNotFoundError(f"Directory not found: {directory}")
-        files = path.rglob(pattern) if recursive else path.glob(pattern)
-        docs: List[Document] = []
-        for f in files:
-            if f.is_file():
+        if not path.exists() or not path.is_dir():
+            return []
+        docs = []
+        glob_fn = path.rglob if recursive else path.glob
+        for file_path in glob_fn(pattern):
+            if file_path.is_file():
                 try:
-                    docs.extend(self.load(f))
+                    docs.extend(self.load(file_path))
                 except Exception as e:
-                    self.logger.warning(f"Skipping {f}: {e}")
+                    self.logger.warning(f"Error loading {file_path}: {e}")
         self.logger.info(f"Loaded {len(docs)} documents from {directory}")
         return docs
 

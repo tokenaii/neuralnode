@@ -7,11 +7,12 @@ This folder contains code examples for downloading and using Horus models.
 | Model ID | File Size | Type | Best For |
 |----------|-----------|------|----------|
 | `tokenaii/horus/Horus-1.0-4B` | ~10 GB | Safetensors | Maximum accuracy, GPU with 8GB+ VRAM |
-| `tokenaii/Hours-1.0-4B-GGUF/Horus-1.0-4B-Q4_K_M.gguf` | 2.78 GB | GGUF 4-bit | Low VRAM (4-6GB), fastest inference |
-| `tokenaii/Hours-1.0-4B-GGUF/Horus-1.0-4B-Q5_K_M.gguf` | 3.23 GB | GGUF 5-bit | Balance between quality and memory |
-| `tokenaii/Hours-1.0-4B-GGUF/Horus-1.0-4B-Q6_K.gguf` | 3.71 GB | GGUF 6-bit | Better quality with reasonable memory |
-| `tokenaii/Hours-1.0-4B-GGUF/Horus-1.0-4B-Q8_0.gguf` | 4.8 GB | GGUF 8-bit | Good quality with ~50% memory savings |
-| `tokenaii/Hours-1.0-4B-GGUF/Horus-1.0-4B-F16.gguf` | 9.83 GB | GGUF 16-bit | Maximum quality, same as original |
+| `tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q4_K_M.gguf` | 2.78 GB | GGUF 4-bit | Low VRAM (4-6GB), fastest inference |
+| `tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q5_K_M.gguf` | 3.23 GB | GGUF 5-bit | Balance between quality and memory |
+| `tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q6_K.gguf` | 3.71 GB | GGUF 6-bit | Better quality with reasonable memory |
+| `tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q8_0.gguf` | 4.8 GB | GGUF 8-bit | Good quality with ~50% memory savings |
+| `tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-F16.gguf` | 9.83 GB | GGUF 16-bit | Maximum quality, same as original |
+| `tokenaii/Horus-Lens-1.0` | Unknown | Text-to-image | Image generation from prompts |
 
 ## Installation
 
@@ -24,7 +25,7 @@ pip install neuralnode[horus]
 ```python
 import neuralnode as nn
 
-model = nn.HorusModel("tokenaii/Hours-1.0-4B-GGUF/Horus-1.0-4B-Q4_K_M.gguf").load()
+model = nn.HorusModel("tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q4_K_M.gguf").load()
 response = model.chat([{"role": "user", "content": "Hello!"}])
 print(response.content)
 ```
@@ -33,7 +34,7 @@ print(response.content)
 
 ### Basic Usage
 - `01_basic_usage.py` - Simple download and use
-- `02_with_token.py` - Private models with HF token
+- `02_horus_lens.py` - Generate an image with Horus Lens
 - `03_one_liner.py` - One-liner usage
 - `04_custom_cache.py` - Custom download location
 

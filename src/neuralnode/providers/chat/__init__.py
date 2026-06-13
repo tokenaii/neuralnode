@@ -15,6 +15,9 @@ from .perplexity import PerplexityChatProvider
 from .ai21 import AI21ChatProvider
 from .together import TogetherChatProvider
 from .fireworks import FireworksChatProvider
+from .bedrock import BedrockChatProvider
+from .vertex import VertexAIChatProvider
+from .openai import OpenAIChatProvider, OpenRouterChatProvider, AgentRouterChatProvider
 
 # Convenience aliases
 AnthropicProvider = AnthropicChatProvider
@@ -23,6 +26,9 @@ GroqProvider = GroqChatProvider
 MistralProvider = MistralChatProvider
 CohereProvider = CohereChatProvider
 DeepSeekProvider = DeepSeekChatProvider
+OpenAIProvider = OpenAIChatProvider
+OpenRouterProvider = OpenRouterChatProvider
+AgentRouterProvider = AgentRouterChatProvider
 
 __all__ = [
     # Base chat providers
@@ -36,6 +42,11 @@ __all__ = [
     "AI21ChatProvider",
     "TogetherChatProvider",
     "FireworksChatProvider",
+    "BedrockChatProvider",
+    "VertexAIChatProvider",
+    "OpenAIChatProvider",
+    "OpenRouterChatProvider",
+    "AgentRouterChatProvider",
     # Aliases
     "AnthropicProvider",
     "GoogleProvider",
@@ -43,4 +54,8 @@ __all__ = [
     "MistralProvider",
     "CohereProvider",
     "DeepSeekProvider",
+    "OpenAIProvider",
+    "OpenRouterProvider",
+    "AgentRouterProvider",
 ]
+
