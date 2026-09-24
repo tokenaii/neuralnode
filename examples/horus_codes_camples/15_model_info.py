@@ -5,7 +5,7 @@ Get model information
 import neuralnode as nn
 
 model = nn.HorusModel(
-    "tokenaii/horus",
+    "horus",
     load_in_4bit=True
 ).load()
 

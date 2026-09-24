@@ -7,7 +7,7 @@ Best for: Maximum quality, same as original model
 import neuralnode as nn
 
 model = nn.HorusModel(
-    "tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-F16.gguf"
+    "Horus-1.0-4B-F16.gguf"
 ).load()
 
 response = model.chat([{"role": "user", "content": "Hello!"}])

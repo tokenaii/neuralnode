@@ -4,7 +4,7 @@ Streaming responses (real-time tokens)
 
 import neuralnode as nn
 
-model = nn.HorusModel("tokenaii/horus").load()
+model = nn.HorusModel("horus").load()
 
 # Stream tokens as they are generated
 print("Response: ", end="", flush=True)

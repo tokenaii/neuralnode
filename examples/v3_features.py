@@ -10,7 +10,7 @@ def provider_example():
 
 
 def horus_example():
-    model = nn.HorusModel("tokenaii/horus/Horus-1.0-4B").load()
+    model = nn.HorusModel("Horus-1.0-4B").load()
     response = model.chat([{"role": "user", "content": "Explain NeuralNode in one sentence."}])
     print(response.content)
 

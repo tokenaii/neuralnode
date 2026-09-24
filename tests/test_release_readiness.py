@@ -7,9 +7,9 @@ import nn as nn_short
 class TestReleaseReadiness(unittest.TestCase):
     
     def test_version_bump(self):
-        """Verify version is updated to 2.2.0 in the packages."""
-        self.assertEqual(nn.__version__, "2.2.0")
-        self.assertEqual(nn_short.__version__, "2.2.0")
+        """Verify version is updated to 2.2.7 in the packages."""
+        self.assertEqual(nn.__version__, "2.2.7")
+        self.assertEqual(nn_short.__version__, "2.2.7")
 
     def test_provider_registration(self):
         """Verify key providers are registered in the registry."""

@@ -6,7 +6,7 @@ import neuralnode as nn
 
 # Offload to disk when GPU memory is full
 model = nn.HorusModel(
-    "tokenaii/horus",
+    "horus",
     device_map="auto",
     offload_folder="./offload_weights",
     offload_state_dict=True,

@@ -1,0 +1,86 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
+      - ./db/002-retention-rate-limits.sql:/docker-entrypoint-initdb.d/002-retention-rate-limits.sql:ro
+      - ./db/003-security-hardening.sql:/docker-entrypoint-initdb.d/003-security-hardening.sql:ro
+      - ./db/004-production-readiness.sql:/docker-entrypoint-initdb.d/004-production-readiness.sql:ro
+      - ./db/005-manual-distillation-review.sql:/docker-entrypoint-initdb.d/005-manual-distillation-review.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./api
+    image: tokenai-early-access-api:0.4.0
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      PORT: ${PORT}
+      ADMIN_TOKEN: ${ADMIN_TOKEN}
+      API_KEY_PEPPER: ${API_KEY_PEPPER}
+      API_KEY_ENCRYPTION_KEY: ${API_KEY_ENCRYPTION_KEY}
+      TOKENAI_ALLOWED_ORIGINS: ${TOKENAI_ALLOWED_ORIGINS}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_SECURE: ${SMTP_SECURE}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME}
+      REPLY_TO_EMAIL: ${REPLY_TO_EMAIL}
+      MODEL_UPSTREAM_URL: ${MODEL_UPSTREAM_URL:-}
+      MODEL_UPSTREAM_URLS: ${MODEL_UPSTREAM_URLS:-}
+      MODEL_UPSTREAM_MODEL: ${MODEL_UPSTREAM_MODEL:-}
+      MODEL_UPSTREAM_MODE: ${MODEL_UPSTREAM_MODE:-chat}
+      MODEL_UPSTREAM_API_KEY: ${MODEL_UPSTREAM_API_KEY:-}
+      MODEL_UPSTREAM_AUTH_HEADER: ${MODEL_UPSTREAM_AUTH_HEADER:-Authorization}
+      MODEL_UPSTREAM_AUTH_SCHEME: ${MODEL_UPSTREAM_AUTH_SCHEME:-Bearer}
+      MODEL_UPSTREAM_TIMEOUT_MS: ${MODEL_UPSTREAM_TIMEOUT_MS:-120000}
+      MODEL_QUALITY_FAIL_CLOSED: ${MODEL_QUALITY_FAIL_CLOSED:-true}
+      GLOBAL_INFERENCE_CAPACITY: ${GLOBAL_INFERENCE_CAPACITY:-2}
+      GLOBAL_INFERENCE_MAX_QUEUE: ${GLOBAL_INFERENCE_MAX_QUEUE:-40}
+      GLOBAL_INFERENCE_QUEUE_TIMEOUT_MS: ${GLOBAL_INFERENCE_QUEUE_TIMEOUT_MS:-120000}
+      GLOBAL_INFERENCE_LEASE_SECONDS: ${GLOBAL_INFERENCE_LEASE_SECONDS:-240}
+    ports:
+      - "127.0.0.1:8080:8080"
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN}
+    depends_on:
+      - api
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  postgres_data:

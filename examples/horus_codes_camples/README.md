@@ -6,13 +6,15 @@ This folder contains code examples for downloading and using Horus models.
 
 | Model ID | File Size | Type | Best For |
 |----------|-----------|------|----------|
-| `tokenaii/horus/Horus-1.0-4B` | ~10 GB | Safetensors | Maximum accuracy, GPU with 8GB+ VRAM |
-| `tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q4_K_M.gguf` | 2.78 GB | GGUF 4-bit | Low VRAM (4-6GB), fastest inference |
-| `tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q5_K_M.gguf` | 3.23 GB | GGUF 5-bit | Balance between quality and memory |
-| `tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q6_K.gguf` | 3.71 GB | GGUF 6-bit | Better quality with reasonable memory |
-| `tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q8_0.gguf` | 4.8 GB | GGUF 8-bit | Good quality with ~50% memory savings |
-| `tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-F16.gguf` | 9.83 GB | GGUF 16-bit | Maximum quality, same as original |
-| `tokenaii/Horus-Lens-1.0` | Unknown | Text-to-image | Image generation from prompts |
+| `Horus-1.0-4B` | ~10 GB | Safetensors | Maximum accuracy, GPU with 8GB+ VRAM |
+| `Horus-1.0-4B-Q4_K_M.gguf` | 2.78 GB | GGUF 4-bit | Low VRAM (4-6GB), fastest inference |
+| `Horus-1.0-4B-Q5_K_M.gguf` | 3.23 GB | GGUF 5-bit | Balance between quality and memory |
+| `Horus-1.0-4B-Q6_K.gguf` | 3.71 GB | GGUF 6-bit | Better quality with reasonable memory |
+| `Horus-1.0-4B-Q8_0.gguf` | 4.8 GB | GGUF 8-bit | Good quality with ~50% memory savings |
+| `Horus-1.0-4B-F16.gguf` | 9.83 GB | GGUF 16-bit | Maximum quality, same as original |
+| `Horus-Lens-1.0` | Unknown | Text-to-image | Image generation from prompts |
+| `Horus-Hiero-9B-Q4_K_M.gguf` | 5.63 GB | GGUF 4-bit | Hieroglyphs and multilingual tasks |
+| `Horus-Hiero-Mini-4B-Q4_K_M.gguf` | 2.71 GB | GGUF 4-bit | Smaller Hiero model |
 
 ## Installation
 
@@ -25,7 +27,7 @@ pip install neuralnode[horus]
 ```python
 import neuralnode as nn
 
-model = nn.HorusModel("tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q4_K_M.gguf").load()
+model = nn.HorusModel("Horus-1.0-4B-Q4_K_M.gguf").load()
 response = model.chat([{"role": "user", "content": "Hello!"}])
 print(response.content)
 ```
@@ -65,3 +67,4 @@ print(response.content)
 - `17_cpu_only.py` - CPU inference
 - `18_production_setup.py` - Full production config
 - `24_list_models.py` - List all available models
+- `26_horus_hiero.py` - Horus Hiero Mini GGUF usage

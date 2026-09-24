@@ -6,7 +6,7 @@ import neuralnode as nn
 
 # Force download even if cached
 model = nn.HorusModel(
-    "tokenaii/horus",
+    "horus",
     force_download=True,
 ).load()
 

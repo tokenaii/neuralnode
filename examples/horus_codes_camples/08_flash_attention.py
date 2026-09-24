@@ -6,7 +6,7 @@ import neuralnode as nn
 
 # Enable Flash Attention 2
 model = nn.HorusModel(
-    model_id="tokenaii/horus",
+    model_id="horus",
     device="cuda",
     use_flash_attention=True,
     torch_dtype="float16",

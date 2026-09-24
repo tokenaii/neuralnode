@@ -45,7 +45,7 @@ import neuralnode as nn
 
 ai = nn.NeuralNode(
     provider="horus",
-    model="tokenaii/horus/Horus-1.0-4B",
+    model="Horus-1.0-4B",
 )
 
 agent = ai.agent(agent_type="simple", thinking=False)

@@ -13,8 +13,8 @@ import neuralnode as nn
 
 def main() -> None:
     # Example TQ model id (replace with the real published TQ GGUF file when available)
-    tq_model_id = "tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-TQ3_1S.gguf"
-    q4_model_id = "tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q4_K_M.gguf"
+    tq_model_id = "Horus-1.0-4B-TQ3_1S.gguf"
+    q4_model_id = "Horus-1.0-4B-Q4_K_M.gguf"
 
     # Optional: register TQ in Horus listed models for nicer discovery.
     nn.HorusModel.register_gguf_variant(

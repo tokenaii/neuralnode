@@ -111,7 +111,7 @@ Example:
 import neuralnode as nn
 
 model = nn.HorusModel(
-    model_id="tokenaii/horus/Horus-1.0-4B",
+    model_id="Horus-1.0-4B",
     turboquant=True,
     turboquant_bits=4,
     enable_tts=True,
@@ -127,21 +127,27 @@ print(response.content)
 ```
 
 Available Horus model IDs:
-- `tokenaii/horus`
-- `tokenaii/horus/Horus-1.0-4B`
-- `tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q4_K_M.gguf`
-- `tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q5_K_M.gguf`
-- `tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q6_K.gguf`
-- `tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q8_0.gguf`
-- `tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-F16.gguf`
-- `tokenaii/Horus-Lens-1.0`
+- `horus`
+- `Horus-1.0-4B`
+- `Horus-1.0-4B-Q4_K_M.gguf`
+- `Horus-1.0-4B-Q5_K_M.gguf`
+- `Horus-1.0-4B-Q6_K.gguf`
+- `Horus-1.0-4B-Q8_0.gguf`
+- `Horus-1.0-4B-F16.gguf`
+- `Horus-Lens-1.0`
+- `Horus-Hiero-9B`
+- `Horus-Hiero-9B-Q4_K_M.gguf`
+- `Horus-Hiero-9B-Q6_K.gguf`
+- `Horus-Hiero-Mini-4B`
+- `Horus-Hiero-Mini-4B-Q4_K_M.gguf`
+- `Horus-Hiero-Mini-4B-Q6_K.gguf`
 
 Horus Lens text-to-image example:
 
 ```python
 import neuralnode as nn
 
-model = nn.HorusLensModel("tokenaii/Horus-Lens-1.0").load()
+model = nn.HorusLensModel("Horus-Lens-1.0").load()
 model.generate_image(
     "A detailed cinematic image of an ancient Egyptian AI lab, golden light",
     output_path="outputs/horus_lens.png",
@@ -186,7 +192,7 @@ Example:
 ```python
 import neuralnode as nn
 
-ai = nn.NeuralNode(provider="horus", model="tokenaii/horus/Horus-1.0-4B")
+ai = nn.NeuralNode(provider="horus", model="Horus-1.0-4B")
 agent = ai.agent(agent_type="simple", thinking=False)
 
 bot = nn.TelegramBot(

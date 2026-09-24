@@ -12,6 +12,7 @@ import time
 import requests
 import subprocess
 import threading
+import shutil
 from pathlib import Path
 from typing import Optional, Dict, Any, List, Union
 from dataclasses import dataclass, field
@@ -209,6 +210,9 @@ class EvolutionWhatsAppBot:
         
     def start_gateway(self, port: int = 8080, wait_seconds: int = 15):
         """Start the rebranded local Node.js Evolution API gateway."""
+        if shutil.which("npm") is None:
+            raise RuntimeError("npm is required to start the WhatsApp gateway. Install Node.js and retry.")
+
         gateway_dir = Path(__file__).parent / "whatsapp" / "evolution-api"
         if not gateway_dir.exists():
             raise FileNotFoundError(
@@ -231,8 +235,7 @@ DATABASE_ENABLED=false
         self.logger.info("Installing gateway dependencies (npm install)...")
         # Run npm install
         subprocess.run(
-            "npm install",
-            shell=True,
+            ["npm", "install"],
             cwd=str(gateway_dir),
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
@@ -240,9 +243,9 @@ DATABASE_ENABLED=false
         
         self.logger.info("Starting NeuralNode WhatsApp Gateway...")
         # Start server
+        startup_cmd = ["npm", "run", "dev"] if (gateway_dir / "src").exists() else ["npm", "start"]
         self.gateway_process = subprocess.Popen(
-            "npm run dev" if (gateway_dir / "src").exists() else "npm start",
-            shell=True,
+            startup_cmd,
             cwd=str(gateway_dir),
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL

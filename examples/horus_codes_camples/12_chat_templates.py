@@ -4,7 +4,7 @@ Chat templates (different formats)
 
 import neuralnode as nn
 
-model = nn.HorusModel("tokenaii/horus").load()
+model = nn.HorusModel("horus").load()
 
 # Use default template
 model.set_chat_template("default")

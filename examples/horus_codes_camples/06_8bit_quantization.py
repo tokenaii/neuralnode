@@ -6,7 +6,7 @@ import neuralnode as nn
 
 # Load with 8-bit quantization (~50% memory savings)
 model = nn.HorusModel(
-    model_id="tokenaii/horus",
+    model_id="horus",
     device="cuda",
     load_in_8bit=True,
 ).load()

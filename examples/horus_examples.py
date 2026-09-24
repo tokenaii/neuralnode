@@ -5,7 +5,7 @@ Horus Model Usage Examples for NeuralNode
 This file demonstrates how to use the Horus model with NeuralNode.
 
 Horus is a custom AI model trained by the user, available on HuggingFace:
-https://huggingface.co/tokenaii/horus
+https://huggingface.co/horus
 
 Basic Usage:
     import neuralnode as nn
@@ -20,7 +20,7 @@ Basic Usage:
 Advanced Usage:
     # Load with custom settings
     model = nn.HorusModel(
-        model_id="tokenaii/horus",
+        model_id="horus",
         device="cuda",           # Use GPU
         load_in_8bit=True,        # Save memory with 8-bit quantization
         use_flash_attention=True, # Faster inference
@@ -82,7 +82,7 @@ def example_advanced_settings():
     
     # Load with GPU and quantization for faster inference
     model = nn.HorusModel(
-        model_id="tokenaii/horus",
+        model_id="horus",
         device="cuda",                # Use GPU (falls back to CPU if not available)
         torch_dtype="float16",        # Use half precision
         load_in_8bit=True,            # 8-bit quantization (saves VRAM)
@@ -190,7 +190,7 @@ def example_with_neuralnode():
     print("=" * 60)
     
     # Use Horus through NeuralNode main class
-    ai = nn.NeuralNode(provider="horus", model="tokenaii/horus")
+    ai = nn.NeuralNode(provider="horus", model="horus")
     
     # Simple chat
     response = ai.chat("What is machine learning?")
@@ -210,7 +210,7 @@ def example_memory_efficient():
     
     # For systems with limited VRAM (4GB-6GB)
     model = nn.HorusModel(
-        model_id="tokenaii/horus",
+        model_id="horus",
         device="cuda",
         load_in_4bit=True,           # 4-bit quantization (saves most memory)
         torch_dtype="float16",

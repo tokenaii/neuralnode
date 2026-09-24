@@ -7,7 +7,7 @@ import neuralnode as nn
 
 # Load GGUF 4-bit model (~2.78GB file, ~2GB VRAM)
 model = nn.HorusModel(
-    "tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q4_K_M.gguf"
+    "Horus-1.0-4B-Q4_K_M.gguf"
 ).load()
 
 response = model.chat([{"role": "user", "content": "Hello!"}])

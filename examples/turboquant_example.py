@@ -17,7 +17,7 @@ def transformers_example():
 
 def horus_example():
     model = nn.HorusModel(
-        model_id="tokenaii/horus/Horus-1.0-4B",
+        model_id="Horus-1.0-4B",
         turboquant=True,
         turboquant_bits=4,
         enable_tts=True,

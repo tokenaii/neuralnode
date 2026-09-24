@@ -22,7 +22,7 @@ def example_1_basic_usage():
     print("Example 1: Basic Usage")
     print("=" * 70)
     
-    model = nn.HorusModel("tokenaii/horus").load()
+    model = nn.HorusModel("horus").load()
     
     response = model.chat([{
         "role": "user",
@@ -40,17 +40,17 @@ def example_2_device_options():
     print("=" * 70)
     
     # Auto device selection (GPU if available, else CPU)
-    model_auto = nn.HorusModel("tokenaii/horus").load()
+    model_auto = nn.HorusModel("horus").load()
     
     # Force CPU
     model_cpu = nn.HorusModel(
-        "tokenaii/horus",
+        "horus",
         device="cpu"
     ).load()
     
     # Force specific GPU
     model_gpu0 = nn.HorusModel(
-        "tokenaii/horus",
+        "horus",
         device="cuda:0"
     ).load()
     
@@ -66,25 +66,25 @@ def example_3_precision_dtypes():
     
     # Float16 (half precision) - fastest on modern GPUs
     model_fp16 = nn.HorusModel(
-        "tokenaii/horus",
+        "horus",
         torch_dtype="float16"  # or torch.float16
     ).load()
     
     # BFloat16 (better for training, supported on Ampere+)
     model_bf16 = nn.HorusModel(
-        "tokenaii/horus",
+        "horus",
         torch_dtype="bfloat16"
     ).load()
     
     # Float32 (full precision, most accurate)
     model_fp32 = nn.HorusModel(
-        "tokenaii/horus",
+        "horus",
         torch_dtype="float32"
     ).load()
     
     # Auto (let transformers decide)
     model_auto = nn.HorusModel(
-        "tokenaii/horus",
+        "horus",
         torch_dtype="auto"
     ).load()
     
@@ -100,14 +100,14 @@ def example_4_quantization():
     
     # 8-bit quantization (~50% memory savings)
     model_8bit = nn.HorusModel(
-        "tokenaii/horus",
+        "horus",
         load_in_8bit=True,
         device="cuda"
     ).load()
     
     # 4-bit quantization (~75% memory savings)
     model_4bit = nn.HorusModel(
-        "tokenaii/horus",
+        "horus",
         load_in_4bit=True,
         bnb_4bit_compute_dtype="float16",
         bnb_4bit_quant_type="nf4",  # "nf4" or "fp4"
@@ -128,21 +128,21 @@ def example_5_device_mapping():
     
     # Auto device mapping (transformers decides optimal distribution)
     model_auto_map = nn.HorusModel(
-        "tokenaii/horus",
+        "horus",
         device_map="auto",
         load_in_8bit=True
     ).load()
     
     # Balanced distribution across GPUs
     model_balanced = nn.HorusModel(
-        "tokenaii/horus",
+        "horus",
         device_map="balanced",
         max_memory={0: "8GiB", 1: "8GiB"}  # Per GPU limit
     ).load()
     
     # Custom device mapping (specific layers to specific devices)
     model_custom = nn.HorusModel(
-        "tokenaii/horus",
+        "horus",
         device_map={
             "transformer.word_embeddings": 0,
             "transformer.layers.0": 0,
@@ -153,7 +153,7 @@ def example_5_device_mapping():
     
     # CPU offloading for large models
     model_offload = nn.HorusModel(
-        "tokenaii/horus",
+        "horus",
         device_map="auto",
         offload_folder="offload_weights",  # Disk offloading
         offload_state_dict=True,
@@ -172,20 +172,20 @@ def example_6_attention_options():
     
     # Flash Attention 2 (fastest, requires flash-attn package)
     model_flash = nn.HorusModel(
-        "tokenaii/horus",
+        "horus",
         use_flash_attention=True,  # Uses "flash_attention_2"
         # attn_implementation="flash_attention_2"  # Same effect
     ).load()
     
     # Scaled Dot Product Attention (PyTorch native, good default)
     model_sdpa = nn.HorusModel(
-        "tokenaii/horus",
+        "horus",
         attn_implementation="sdpa"  # "sdpa", "eager", "flash_attention_2"
     ).load()
     
     # Eager attention (standard, most compatible)
     model_eager = nn.HorusModel(
-        "tokenaii/horus",
+        "horus",
         attn_implementation="eager"
     ).load()
     
@@ -204,39 +204,39 @@ def example_7_advanced_loading():
     
     # Specific model variant
     model_variant = nn.HorusModel(
-        "tokenaii/horus",
+        "horus",
         variant="fp16",  # "fp16", "bf16", etc.
     ).load()
     
     # Specific revision/branch
     model_revision = nn.HorusModel(
-        "tokenaii/horus",
+        "horus",
         revision="main",  # or specific commit hash
         subfolder="model_files",  # If model is in subfolder
     ).load()
     
     # Use safetensors (recommended, faster loading)
     model_safetensors = nn.HorusModel(
-        "tokenaii/horus",
+        "horus",
         use_safetensors=True,  # Default True
     ).load()
     
     # Low CPU memory loading (for large models)
     model_low_mem = nn.HorusModel(
-        "tokenaii/horus",
+        "horus",
         low_cpu_mem_usage=True,  # Default True
         # Prevents loading full model into RAM before moving to GPU
     ).load()
     
     # Custom cache directory
     model_cache = nn.HorusModel(
-        "tokenaii/horus",
+        "horus",
         cache_dir="/path/to/custom/cache",
     ).load()
     
     # Local files only (offline mode)
     model_offline = nn.HorusModel(
-        "tokenaii/horus",
+        "horus",
         local_files_only=True,  # Use only cached files
     ).load()
     
@@ -252,7 +252,7 @@ def example_8_generation_params():
     
     # Model with default generation settings
     model = nn.HorusModel(
-        "tokenaii/horus",
+        "horus",
         # Default generation parameters
         max_new_tokens=512,
         temperature=0.7,
@@ -300,7 +300,7 @@ def example_9_network_options():
 
     # With proxy
     model_proxy = nn.HorusModel(
-        "tokenaii/horus",
+        "horus",
         proxies={
             "http": "http://proxy.example.com:8080",
             "https": "https://proxy.example.com:8080",
@@ -309,13 +309,13 @@ def example_9_network_options():
     
     # Force re-download
     model_force = nn.HorusModel(
-        "tokenaii/horus",
+        "horus",
         force_download=True,  # Ignore cache
     ).load()
     
     # Resume interrupted download
     model_resume = nn.HorusModel(
-        "tokenaii/horus",
+        "horus",
         resume_download=True,
     ).load()
     
@@ -329,7 +329,7 @@ def example_10_model_info():
     print("Example 10: Model Information")
     print("=" * 70)
     
-    model = nn.HorusModel("tokenaii/horus", load_in_4bit=True).load()
+    model = nn.HorusModel("horus", load_in_4bit=True).load()
     
     # Get comprehensive model info
     info = model.get_model_info()
@@ -373,7 +373,7 @@ def example_12_chat_templates():
     print("Example 12: Chat Templates")
     print("=" * 70)
     
-    model = nn.HorusModel("tokenaii/horus").load()
+    model = nn.HorusModel("horus").load()
     
     # List available templates
     print("Available templates:", list(model.CHAT_TEMPLATES.keys()))
@@ -400,7 +400,7 @@ def example_13_streaming():
     print("Example 13: Streaming Responses")
     print("=" * 70)
     
-    model = nn.HorusModel("tokenaii/horus").load()
+    model = nn.HorusModel("horus").load()
     
     print("Streaming response: ", end="", flush=True)
     for token in model.stream_chat([{
@@ -420,7 +420,7 @@ def example_14_complete_setup():
     
     # Full configuration for production use
     model = nn.HorusModel(
-        model_id="tokenaii/horus",
+        model_id="horus",
         
         # Device & Precision
         device="cuda",

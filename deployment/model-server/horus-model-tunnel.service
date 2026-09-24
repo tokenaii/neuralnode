@@ -1,0 +1,24 @@
+[Unit]
+Description=Private tunnels to Horus Cyper model workers
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ec2-user
+Group=ec2-user
+ExecStart=/usr/bin/ssh -NT -i /home/ec2-user/.ssh/horus_model_tunnel -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/home/ec2-user/.ssh/known_hosts -o ExitOnForwardFailure=yes -o ServerAliveInterval=20 -o ServerAliveCountMax=3 -L 172.18.0.1:18011:172.31.28.151:8011 -L 172.18.0.1:18012:172.31.28.151:8012 ec2-user@54.91.40.201
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

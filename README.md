@@ -1,4 +1,4 @@
-# NeuralNode v2.2.0
+# NeuralNode v2.2.7
 
 NeuralNode is a Python AI framework focused on:
 - real cloud providers that are implemented
@@ -40,7 +40,50 @@ print(ai.chat("Hello from NeuralNode"))
 
 ## Horus
 
-All Horus models use:
+### H-Preview Model API
+
+NeuralNode includes an OpenAI-compatible API gateway for serving H-Preview through a vLLM-compatible server on another machine. The gateway creates `nn-` access tokens, supports one owner admin token without an RPM limit, and applies per-token RPM limits to user tokens. See [docs/model_api.md](docs/model_api.md) for deployment and Python client examples.
+
+```python
+import neuralnode as nn
+
+ai = nn.NeuralNode(
+    provider="h-preview",
+    model="h-preview",
+    api_key="nn-...",
+    base_url="https://api.example.com/v1",
+)
+print(ai.chat("Say hello."))
+```
+
+### Horus Cyper Nano 1.0 BETA Early Access API
+
+Horus Cyper Nano 1.0 BETA is a Text-to-Text model. Approved Early Access users can call the hosted model through the same
+`NeuralNode` interface. Each Access Token has its own server-enforced RPM limit,
+and API conversations are retained by TokenAI under the Early Access terms.
+
+```python
+import neuralnode as nn
+
+ai = nn.NeuralNode(
+    provider="horus-cyper-nano",
+    model="horus-cyper-nano-1.0-beta",
+    api_key="horusNN-XXXXXXXXXXXXXXXX",
+)
+
+print(ai.chat("Review this code for defensive cybersecurity issues."))
+```
+
+The client reads `HORUS_CYPER_NANO_API_KEY` automatically. Override
+`HORUS_CYPER_NANO_BASE_URL` only when TokenAI provides a different API endpoint.
+The production API base URL is `https://api.tokenai.llc/v1`. Agent Mode supports
+function tools, required or named tool choices, tool-result messages, and
+buffered SSE compatibility streams. The hosted Early Access model has a 32,768
+token context. See `examples/horus_cyper_nano_agent_mode.py` for the complete
+tool-call round trip. NeuralNode retries temporary HTTP 429, 502, and 503
+responses up to two times by default and respects the API Retry-After header.
+
+Locally loaded Horus models use:
 - unified chat template: `horus_unified`
 - unified context window: `8192`
 
@@ -50,7 +93,7 @@ Horus downloads are public-only. Private or gated Hugging Face repositories are 
 import neuralnode as nn
 
 model = nn.HorusModel(
-    model_id="tokenaii/horus/Horus-1.0-4B",
+    model_id="Horus-1.0-4B",
     turboquant=True,
     turboquant_bits=4,
 ).load()
@@ -72,21 +115,44 @@ print(HorusModel.list_available_models())
 ```
 
 Supported IDs currently include:
-- `tokenaii/horus`
-- `tokenaii/horus/Horus-1.0-4B`
-- `tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q4_K_M.gguf`
-- `tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q5_K_M.gguf`
-- `tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q6_K.gguf`
-- `tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q8_0.gguf`
-- `tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-F16.gguf`
-- `tokenaii/Horus-Lens-1.0`
+- `horus`
+- `Horus-1.0-4B`
+- `Horus-1.0-4B-Q4_K_M.gguf`
+- `Horus-1.0-4B-Q5_K_M.gguf`
+- `Horus-1.0-4B-Q6_K.gguf`
+- `Horus-1.0-4B-Q8_0.gguf`
+- `Horus-1.0-4B-F16.gguf`
+- `Horus-Lens-1.0`
+- `Horus-Hiero-9B`
+- `Horus-Hiero-9B-Q4_K_M.gguf`
+- `Horus-Hiero-9B-Q6_K.gguf`
+- `Horus-Hiero-Mini-4B`
+- `Horus-Hiero-Mini-4B-Q4_K_M.gguf`
+- `Horus-Hiero-Mini-4B-Q6_K.gguf`
+
+### Horus Hiero
+
+```python
+import neuralnode as nn
+
+model = nn.HorusModel(
+    "Horus-Hiero-Mini-4B-Q4_K_M.gguf",
+    device="cpu",
+).load()
+
+response = model.chat([
+    {"role": "user", "content": "Translate this hieroglyphic text into English."}
+])
+
+print(response.content)
+```
 
 ### Horus Lens text-to-image
 
 ```python
 import neuralnode as nn
 
-model = nn.HorusLensModel("tokenaii/Horus-Lens-1.0").load()
+model = nn.HorusLensModel("Horus-Lens-1.0").load()
 model.generate_image(
     "A detailed cinematic image of an ancient Egyptian AI lab, golden light",
     output_path="outputs/horus_lens.png",
@@ -117,7 +183,7 @@ Voice mapping docs:
 import neuralnode as nn
 
 model = nn.HorusModel(
-    model_id="tokenaii/horus/Horus-1.0-4B",
+    model_id="Horus-1.0-4B",
     enable_tts=True,
     tts_voice_id="replic-salma-language{ar-eg}",
 ).load()
@@ -138,7 +204,7 @@ Use a BotFather token to connect an agent to Telegram.
 ```python
 import neuralnode as nn
 
-ai = nn.NeuralNode(provider="horus", model="tokenaii/horus/Horus-1.0-4B")
+ai = nn.NeuralNode(provider="horus", model="Horus-1.0-4B")
 agent = ai.agent(agent_type="simple", thinking=False)
 
 bot = nn.TelegramBot(

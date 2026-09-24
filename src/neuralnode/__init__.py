@@ -42,7 +42,7 @@ Quick Start::
     text = sr.listen()
 """
 
-__version__ = "2.2.0"
+__version__ = "2.2.7"
 __author__ = "NeuralNode Contributors"
 
 # ── Core types ────────────────────────────────────────────────────────────────
@@ -78,6 +78,10 @@ from .providers import (
     MistralProvider,
     CohereProvider,
     DeepSeekProvider,
+    HorusCyperNano,
+    HorusCyperNanoAPIError,
+    HorusCyperNanoProvider,
+    HPreviewProvider,
     LlamaCppProvider,
     TransformersProvider,
     UniversalLocalProvider,
@@ -249,6 +253,7 @@ except ImportError:
 # Logging helper
 from .utils.logger import get_logger, setup_logging
 from .utils.dependencies import ensure_feature_dependencies
+from .api import APIKeyStore, H_PREVIEW_HF_REPO, H_PREVIEW_MODEL, create_api_app, generate_admin_token, run_api_server
 
 
 
@@ -661,6 +666,10 @@ __all__ = [
     "get_available_providers", "is_local_provider",
     "OllamaProvider", "AnthropicProvider", "GoogleProvider",
     "GroqProvider", "MistralProvider", "CohereProvider", "DeepSeekProvider",
+    "HorusCyperNano", "HorusCyperNanoAPIError", "HorusCyperNanoProvider",
+    "HPreviewProvider",
+    "APIKeyStore", "H_PREVIEW_HF_REPO", "H_PREVIEW_MODEL",
+    "create_api_app", "generate_admin_token", "run_api_server",
     "LlamaCppProvider", "TransformersProvider", "UniversalLocalProvider",
     "Horus", "HorusLensModel", "HorusModel", "HorusProvider", "load_horus_lens", "print_model_list",
 

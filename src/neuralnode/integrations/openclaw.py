@@ -13,6 +13,8 @@ import socket
 import logging
 import threading
 import subprocess
+import shutil
+import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union, Generator
 
@@ -348,6 +350,8 @@ class OpenClawManager:
 
         # Step 1: Clone OpenClaw repository if not present
         if not repo_dir.exists():
+            if shutil.which("git") is None:
+                raise RuntimeError("git is required to download OpenClaw. Install git and retry.")
             logger.info(f"Cloning OpenClaw repository to {repo_dir}...")
             try:
                 subprocess.run(
@@ -363,19 +367,45 @@ class OpenClawManager:
         # Check npm package manager
         try:
             # We check if pnpm or npm is available
-            use_pnpm = subprocess.run(["pnpm", "--version"], capture_output=True).returncode == 0
-            pm_cmd = ["pnpm", "install"] if use_pnpm else ["npm", "install"]
-            pm_cmd_str = " ".join(pm_cmd)
-            
-            subprocess.run(
-                pm_cmd_str,
+            if shutil.which("pnpm"):
+                pm_cmd = ["pnpm", "install"]
+            elif shutil.which("npm"):
+                pm_cmd = ["npm", "install"]
+            else:
+                raise RuntimeError("npm or pnpm is required to install OpenClaw dependencies. Install Node.js and retry.")
+            install_result = subprocess.run(
+                pm_cmd,
                 cwd=str(repo_dir),
                 check=True,
-                shell=True,
                 capture_output=True
             )
         except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"Failed to install node dependencies: {e.stderr.decode()}")
+            output = (e.stdout or b"").decode(errors="replace") + (e.stderr or b"").decode(errors="replace")
+            raise RuntimeError(f"Failed to install node dependencies: {output.strip()}")
+
+        package_json_path = repo_dir / "package.json"
+        dist_entry_exists = (repo_dir / "dist" / "entry.mjs").exists() or (repo_dir / "dist" / "entry.js").exists()
+        if package_json_path.exists() and not dist_entry_exists:
+            try:
+                with open(package_json_path, "r", encoding="utf-8") as f:
+                    package_json = json.load(f)
+                scripts = package_json.get("scripts", {})
+            except Exception:
+                scripts = {}
+
+            if "build" in scripts:
+                build_cmd = [pm_cmd[0], "run", "build"]
+                logger.info(f"Building OpenClaw via: {' '.join(build_cmd)}")
+                try:
+                    subprocess.run(
+                        build_cmd,
+                        cwd=str(repo_dir),
+                        check=True,
+                        capture_output=True,
+                    )
+                except subprocess.CalledProcessError as e:
+                    output = (e.stdout or b"").decode(errors="replace") + (e.stderr or b"").decode(errors="replace")
+                    raise RuntimeError(f"Failed to build OpenClaw source tree: {output.strip()}")
 
         # Step 3: Write configuration pointing to NeuralNode API server
         self.configure()
@@ -430,20 +460,34 @@ class OpenClawManager:
 
         # Find starting command
         # Use node openclaw.mjs gateway or npm run dev/start
-        startup_cmd = ["node", "openclaw.mjs", "gateway"]
+        startup_cmd = ["node", "openclaw.mjs", "gateway", "--allow-unconfigured"]
         
         # Fallback to dev command if js build not present
         if not (repo_dir / "openclaw.mjs").exists():
             # Check pnpm vs npm run dev
-            use_pnpm = subprocess.run(["pnpm", "--version"], capture_output=True).returncode == 0
-            startup_cmd = ["pnpm", "run", "dev"] if use_pnpm else ["npm", "run", "dev"]
+            if shutil.which("pnpm"):
+                startup_cmd = ["pnpm", "run", "dev"]
+            elif shutil.which("npm"):
+                startup_cmd = ["npm", "run", "dev"]
+            else:
+                raise RuntimeError("npm or pnpm is required to start OpenClaw. Install Node.js and retry.")
 
         logger.info(f"Starting OpenClaw Gateway via: {' '.join(startup_cmd)}")
-        startup_cmd_str = " ".join(startup_cmd) if isinstance(startup_cmd, list) else startup_cmd
+        process_env = os.environ.copy()
+        process_env.update(
+            {
+                "PORT": str(self.gateway_port),
+                "GATEWAY_HOST": self.gateway_host,
+                "GATEWAY_TOKEN": self.api_key or "REDACTED_SHARED_TOKEN",
+                "OPENAI_BASE_URL": f"http://127.0.0.1:{self.api_server_port}/v1",
+                "OPENAI_API_KEY": "REDACTED_SHARED_TOKEN",
+                "OPENAI_MODEL": getattr(self.node, "model", "neuralnode-model") or "neuralnode-model",
+            }
+        )
         self.process = subprocess.Popen(
-            startup_cmd_str,
+            startup_cmd,
             cwd=str(repo_dir),
-            shell=True,
+            env=process_env,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True
@@ -462,7 +506,10 @@ class OpenClawManager:
         # Check process state
         if self.process.poll() is not None:
             stdout, stderr = self.process.communicate()
-            raise RuntimeError(f"OpenClaw process exited immediately with code {self.process.returncode}. Error: {stderr}")
+            raise RuntimeError(
+                f"OpenClaw process exited immediately with code {self.process.returncode}. "
+                f"Output: {(stdout or '') + (stderr or '')}"
+            )
             
         logger.warning("OpenClaw Gateway start timed out, but process is still running.")
 

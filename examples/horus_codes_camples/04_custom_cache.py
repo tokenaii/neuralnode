@@ -6,7 +6,7 @@ import neuralnode as nn
 
 # Download to specific directory
 model = nn.HorusModel(
-    model_id="tokenaii/horus",
+    model_id="horus",
     cache_dir="D:/Models/Horus"
 ).load()
 

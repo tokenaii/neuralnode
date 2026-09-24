@@ -4,7 +4,7 @@ Generation parameters control
 
 import neuralnode as nn
 
-model = nn.HorusModel("tokenaii/horus").load()
+model = nn.HorusModel("horus").load()
 
 # Default generation
 response1 = model.chat([{"role": "user", "content": "Tell me a story"}])

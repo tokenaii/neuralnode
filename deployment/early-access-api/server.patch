@@ -1,0 +1,40 @@
+--- a/api/server.js
++++ b/api/server.js
+@@ -6,5 +6,6 @@
+ import nodemailer from "nodemailer"
+ import pg from "pg"
+ import { z } from "zod"
++import { registerModelGateway } from "./model-gateway.js"
+ const { Pool } = pg
+ const app = express()
+@@ -892,6 +893,17 @@
+   const apiKey = createApiKey()
+   const keyPrefix = `${apiKey.slice(0, 12)}...`
+   const keyHash = hashSecret(apiKey)
+-  const neuralNodeExample = String(req.body?.neuralNodeExample || "NeuralNode usage example will be provided by TokenAI.")
++  const neuralNodeExample = String(req.body?.neuralNodeExample || [
++    "import neuralnode as nn",
++    "",
++    "ai = nn.NeuralNode(",
++    "    provider=\"horus-cyper-nano\",",
++    "    model=\"horus-cyper-nano-1.0-beta\",",
++    `    api_key=\"${apiKey}\",`,
++    ")",
++    "",
++    "response = ai.chat(\"Review this code for defensive cybersecurity issues.\")",
++    "print(response)",
++  ].join("\\n"))
+   const client = await pool.connect()
+   try {
+@@ -1091,5 +1092,11 @@
+   }
+ })
++registerModelGateway({
++  app,
++  pool,
++  authenticateApiKey,
++  enforceApiKeyRateLimit,
++})
+ app.use((error, _req, res, _next) => {
+   console.error(error)
+   res.status(error.statusCode || error.status || 500).json({ error: error.expose ? error.message : "Internal server error" })

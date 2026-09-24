@@ -18,6 +18,12 @@ from .fireworks import FireworksChatProvider
 from .bedrock import BedrockChatProvider
 from .vertex import VertexAIChatProvider
 from .openai import OpenAIChatProvider, OpenRouterChatProvider, AgentRouterChatProvider
+from .horus_cyper_nano import (
+    HorusCyperNano,
+    HorusCyperNanoAPIError,
+    HorusCyperNanoProvider,
+)
+from .h_preview import HPreviewProvider
 
 # Convenience aliases
 AnthropicProvider = AnthropicChatProvider
@@ -47,6 +53,10 @@ __all__ = [
     "OpenAIChatProvider",
     "OpenRouterChatProvider",
     "AgentRouterChatProvider",
+    "HorusCyperNanoProvider",
+    "HorusCyperNano",
+    "HorusCyperNanoAPIError",
+    "HPreviewProvider",
     # Aliases
     "AnthropicProvider",
     "GoogleProvider",
@@ -58,4 +68,3 @@ __all__ = [
     "OpenRouterProvider",
     "AgentRouterProvider",
 ]
-

@@ -6,7 +6,7 @@ import neuralnode as nn
 
 # Full configuration for production
 model = nn.HorusModel(
-    model_id="tokenaii/horus",
+    model_id="horus",
     
     # Device & Precision
     device="cuda",

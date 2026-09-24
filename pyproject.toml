@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "neuralnode"
-version = "2.2.0"
+version = "2.2.7"
 description = "Comprehensive AI Framework with 50+ LLM Providers, Advanced Agents, Chains, Memory, RAG, and 100+ Tools"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -160,6 +160,10 @@ openclaw = [
     "fastapi>=0.110.0",
     "uvicorn>=0.27.0",
 ]
+api = [
+    "fastapi>=0.110.0",
+    "uvicorn>=0.27.0",
+]
 
 # All features
 all = [
@@ -212,8 +216,31 @@ Repository = "https://github.com/assemsabry/neuralnode"
 Issues = "https://github.com/assemsabry/neuralnode/issues"
 Changelog = "https://github.com/assemsabry/neuralnode/blob/main/CHANGELOG.md"
 
+[project.scripts]
+neuralnode-api = "neuralnode.api:main"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/neuralnode"]
+exclude = [
+    "**/__pycache__/**",
+    "**/*.pyc",
+]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "/.pytest_cache",
+    "/.tmp_build",
+    "/.tmp_*",
+    "/actionlint.zip",
+    "/actionlint_bin",
+    "/deployment",
+    "/dist",
+    "/dist_*",
+    "/outputs",
+    "/temp_header.gguf",
+    "**/__pycache__/**",
+    "**/*.pyc",
+]
 
 [tool.black]
 line-length = 100

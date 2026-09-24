@@ -6,7 +6,7 @@ Press Ctrl+C to exit
 import neuralnode as nn
 
 # Load model (choose any available model)
-MODEL_ID = "tokenaii/Horus-1.0-4B-GGUF/Horus-1.0-4B-Q4_K_M.gguf"
+MODEL_ID = "Horus-1.0-4B-Q4_K_M.gguf"
 
 print("="*50)
 print("   Horus Chat Terminal")

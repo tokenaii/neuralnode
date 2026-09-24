@@ -11,9 +11,12 @@ This module standardizes all Horus-family models around:
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import os
 import re
+import shutil
+import struct
 import time
 import warnings
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
@@ -172,7 +175,7 @@ class HorusProvider(BaseLLMProvider):
 
     provider_name = "horus"
     provider_type = ProviderType.LOCAL
-    default_model = "tokenaii/horus"
+    default_model = "horus"
 
     HORUS_MODELS: Dict[str, Dict[str, Any]] = {
         "tokenaii/horus": {
@@ -271,6 +274,114 @@ class HorusProvider(BaseLLMProvider):
             "quantization": "Q8_0",
             "file_size": "7.9 GB",
         },
+        "tokenaii/Horus-Hiero-9B": {
+            "name": "Horus-Hiero-9B",
+            "official_name": "Horus-Hiero-9B",
+            "size": "9B",
+            "type": "safetensors",
+            "repo_id": "tokenaii/Horus-Hiero-9B",
+            "task": "image-text-to-text",
+            "context_window": 262144,
+        },
+        "tokenaii/Horus-Hiero-9B-GGUF/Horus-Hiero-9B-FP16.gguf": {
+            "name": "Horus-Hiero-9B-FP16.gguf",
+            "official_name": "Horus-Hiero-9B-FP16.gguf",
+            "size": "9B",
+            "type": "gguf",
+            "quantization": "FP16",
+            "file_size": "17.9 GB",
+            "context_window": 262144,
+        },
+        "tokenaii/Horus-Hiero-9B-GGUF/Horus-Hiero-9B-Q2_K.gguf": {
+            "name": "Horus-Hiero-9B-Q2_K.gguf",
+            "official_name": "Horus-Hiero-9B-Q2_K.gguf",
+            "size": "9B",
+            "type": "gguf",
+            "quantization": "Q2_K",
+            "file_size": "3.83 GB",
+            "context_window": 262144,
+        },
+        "tokenaii/Horus-Hiero-9B-GGUF/Horus-Hiero-9B-Q4_K_M.gguf": {
+            "name": "Horus-Hiero-9B-Q4_K_M.gguf",
+            "official_name": "Horus-Hiero-9B-Q4_K_M.gguf",
+            "size": "9B",
+            "type": "gguf",
+            "quantization": "Q4_K_M",
+            "file_size": "5.63 GB",
+            "context_window": 262144,
+        },
+        "tokenaii/Horus-Hiero-9B-GGUF/Horus-Hiero-9B-Q6_K.gguf": {
+            "name": "Horus-Hiero-9B-Q6_K.gguf",
+            "official_name": "Horus-Hiero-9B-Q6_K.gguf",
+            "size": "9B",
+            "type": "gguf",
+            "quantization": "Q6_K",
+            "file_size": "7.36 GB",
+            "context_window": 262144,
+        },
+        "tokenaii/Horus-Hiero-9B-GGUF/Horus-Hiero-9B-Q8_0.gguf": {
+            "name": "Horus-Hiero-9B-Q8_0.gguf",
+            "official_name": "Horus-Hiero-9B-Q8_0.gguf",
+            "size": "9B",
+            "type": "gguf",
+            "quantization": "Q8_0",
+            "file_size": "9.53 GB",
+            "context_window": 262144,
+        },
+        "tokenaii/Horus-Hiero-Mini-4B": {
+            "name": "Horus-Hiero-Mini-4B",
+            "official_name": "Horus-Hiero-Mini-4B",
+            "size": "4B",
+            "type": "safetensors",
+            "repo_id": "tokenaii/Horus-Hiero-Mini-4B",
+            "task": "image-text-to-text",
+            "context_window": 262144,
+        },
+        "tokenaii/Horus-Hiero-Mini-4B-GGUF/Horus-Hiero-Mini-4B-FP16.gguf": {
+            "name": "Horus-Hiero-Mini-4B-FP16.gguf",
+            "official_name": "Horus-Hiero-Mini-4B-FP16.gguf",
+            "size": "4B",
+            "type": "gguf",
+            "quantization": "FP16",
+            "file_size": "8.42 GB",
+            "context_window": 262144,
+        },
+        "tokenaii/Horus-Hiero-Mini-4B-GGUF/Horus-Hiero-Mini-4B-Q2_K.gguf": {
+            "name": "Horus-Hiero-Mini-4B-Q2_K.gguf",
+            "official_name": "Horus-Hiero-Mini-4B-Q2_K.gguf",
+            "size": "4B",
+            "type": "gguf",
+            "quantization": "Q2_K",
+            "file_size": "1.92 GB",
+            "context_window": 262144,
+        },
+        "tokenaii/Horus-Hiero-Mini-4B-GGUF/Horus-Hiero-Mini-4B-Q4_K_M.gguf": {
+            "name": "Horus-Hiero-Mini-4B-Q4_K_M.gguf",
+            "official_name": "Horus-Hiero-Mini-4B-Q4_K_M.gguf",
+            "size": "4B",
+            "type": "gguf",
+            "quantization": "Q4_K_M",
+            "file_size": "2.71 GB",
+            "context_window": 262144,
+        },
+        "tokenaii/Horus-Hiero-Mini-4B-GGUF/Horus-Hiero-Mini-4B-Q6_K.gguf": {
+            "name": "Horus-Hiero-Mini-4B-Q6_K.gguf",
+            "official_name": "Horus-Hiero-Mini-4B-Q6_K.gguf",
+            "size": "4B",
+            "type": "gguf",
+            "quantization": "Q6_K",
+            "file_size": "3.46 GB",
+            "context_window": 262144,
+        },
+        "tokenaii/Horus-Hiero-Mini-4B-GGUF/Horus-Hiero-Mini-4B-Q8_0.gguf": {
+            "name": "Horus-Hiero-Mini-4B-Q8_0.gguf",
+            "official_name": "Horus-Hiero-Mini-4B-Q8_0.gguf",
+            "size": "4B",
+            "type": "gguf",
+            "quantization": "Q8_0",
+            "file_size": "4.48 GB",
+            "context_window": 262144,
+        },
     }
 
     CHAT_TEMPLATES = {
@@ -280,6 +391,40 @@ class HorusProvider(BaseLLMProvider):
         UNIFIED_CHAT_TEMPLATE_NAME: UNIFIED_CHAT_TEMPLATE_NAME,
     }
 
+    @classmethod
+    def _model_aliases(cls) -> Dict[str, str]:
+        aliases: Dict[str, str] = {
+            "horus": "tokenaii/horus",
+            "Horus-1.0-4B": "tokenaii/horus/Horus-1.0-4B",
+        }
+        for model_id, info in cls.HORUS_MODELS.items():
+            names = {
+                model_id,
+                str(info.get("name", "")),
+                str(info.get("official_name", "")),
+                model_id.split("/")[-1],
+            }
+            for name in names:
+                if name:
+                    aliases.setdefault(name, model_id)
+        return aliases
+
+    @classmethod
+    def _resolve_model_id(cls, model_id: str) -> str:
+        aliases = cls._model_aliases()
+        for alias, canonical_id in aliases.items():
+            if alias.lower() == model_id.lower():
+                return canonical_id
+        return model_id
+
+    @classmethod
+    def _display_model_id(cls, model_id: str, info: Dict[str, Any]) -> str:
+        if model_id == "tokenaii/horus":
+            return "horus"
+        if model_id == "tokenaii/horus/Horus-1.0-4B":
+            return "Horus-1.0-4B"
+        return str(info.get("official_name") or info.get("name") or model_id.split("/")[-1])
+
     @property
     def capabilities(self) -> ProviderCapabilities:
         return ProviderCapabilities(
@@ -287,15 +432,16 @@ class HorusProvider(BaseLLMProvider):
             text_completion=True,
             streaming=True,
             embeddings=False,
-            context_window=HORUS_CONTEXT_WINDOW,
+            context_window=self._context_window(),
             async_support=True,
         )
 
     def __init__(
         self,
-        model_id: str = "tokenaii/horus",
+        model_id: str = "horus",
         device: Optional[str] = None,
         n_gpu_layers: Optional[int] = None,
+        n_ctx: Optional[int] = None,
         torch_dtype: Optional[Any] = None,
         load_in_8bit: bool = False,
         load_in_4bit: bool = False,
@@ -314,6 +460,8 @@ class HorusProvider(BaseLLMProvider):
         subfolder: str = "",
         revision: Optional[str] = None,
         cache_dir: Optional[str] = None,
+        patched_gguf_dir: Optional[str] = None,
+        patch_hiero_gguf_metadata: bool = True,
         local_files_only: bool = False,
         trust_remote_code: bool = True,
         token: Optional[str] = None,
@@ -328,6 +476,8 @@ class HorusProvider(BaseLLMProvider):
         do_sample: bool = True,
         num_beams: int = 1,
         early_stopping: bool = False,
+        thinking: Optional[bool] = None,
+        show_thinking: bool = False,
         tts_voice_id: str = "replic-aria-language{en-us}",
         enable_tts: bool = False,
         turboquant: Optional[Union[bool, TurboQuant, TurboQuantConfig, Dict[str, Any]]] = None,
@@ -349,19 +499,12 @@ class HorusProvider(BaseLLMProvider):
             model_id = str(forwarded_model)
 
         # Support `filename` kwarg so users can write:
-        #   HorusLensModel(model_id="tokenaii/Horus-Lens-1.0-GGUF", filename="Horus-Lens-1.0-Q3_K_M.gguf")
+        #   HorusLensModel(model_id="Horus-Lens-1.0-GGUF", filename="Horus-Lens-1.0-Q3_K_M.gguf")
         forwarded_filename = kwargs.pop("filename", None)
         if forwarded_filename:
             model_id = f"{model_id.rstrip('/')}/{forwarded_filename}"
 
-        # Case-insensitive normalization of model_id to match keys in HORUS_MODELS
-        matched_key = None
-        for k in self.HORUS_MODELS.keys():
-            if k.lower() == model_id.lower():
-                matched_key = k
-                break
-        if matched_key:
-            model_id = matched_key
+        model_id = self._resolve_model_id(model_id)
 
         is_lens_model = self._is_text_to_image_model_id(model_id)
         if (
@@ -383,6 +526,7 @@ class HorusProvider(BaseLLMProvider):
         self.model_id = model_id
         self.device = device or self._resolve_device()
         self.n_gpu_layers = n_gpu_layers
+        self.n_ctx = n_ctx
         self._user_specified_dtype = torch_dtype  # track explicit user choice
         self.torch_dtype = self._resolve_torch_dtype(torch_dtype)
         self.load_in_8bit = load_in_8bit
@@ -402,6 +546,9 @@ class HorusProvider(BaseLLMProvider):
         self.subfolder = subfolder
         self.revision = revision
         self.cache_dir = cache_dir
+        self.patched_gguf_dir = patched_gguf_dir
+        self.patch_hiero_gguf_metadata = patch_hiero_gguf_metadata
+        self.model_path: Optional[str] = None
         self.local_files_only = local_files_only
         self.trust_remote_code = trust_remote_code
 
@@ -431,6 +578,8 @@ class HorusProvider(BaseLLMProvider):
             "do_sample": do_sample,
             "num_beams": num_beams,
             "early_stopping": early_stopping,
+            "thinking": thinking,
+            "show_thinking": show_thinking,
         }
 
         self.tokenizer = None
@@ -581,7 +730,7 @@ class HorusProvider(BaseLLMProvider):
             quant_match = re.search(r"-(Q\d(?:_[A-Z0-9]+)?|TQ\d(?:_[A-Z0-9]+)?|F16|BF16)\.gguf$", filename, flags=re.IGNORECASE)
             if quant_match:
                 base["quantization"] = quant_match.group(1).upper()
-        base["context_window"] = HORUS_CONTEXT_WINDOW
+        base.setdefault("context_window", HORUS_CONTEXT_WINDOW)
         base["chat_template"] = UNIFIED_CHAT_TEMPLATE_NAME
         base["recommended_settings"] = {
             "max_new_tokens": self.generation_config["max_new_tokens"],
@@ -594,6 +743,153 @@ class HorusProvider(BaseLLMProvider):
             "early_stopping": self.generation_config["early_stopping"],
         }
         return base
+
+    def _context_window(self) -> int:
+        info = getattr(self, "_model_info", None) or self.HORUS_MODELS.get(self.model_id, {})
+        return int(info.get("context_window", HORUS_CONTEXT_WINDOW))
+
+    def _runtime_context_window(self) -> int:
+        if self.n_ctx is not None:
+            return max(int(self.n_ctx), 1)
+        if self._is_gguf_model_id(self.model_id):
+            return min(self._context_window(), HORUS_CONTEXT_WINDOW)
+        return self._context_window()
+
+    @staticmethod
+    def _read_gguf_u32(buffer: Union[bytes, bytearray], offset: int) -> tuple[int, int]:
+        return struct.unpack_from("<I", buffer, offset)[0], offset + 4
+
+    @staticmethod
+    def _read_gguf_u64(buffer: Union[bytes, bytearray], offset: int) -> tuple[int, int]:
+        return struct.unpack_from("<Q", buffer, offset)[0], offset + 8
+
+    @classmethod
+    def _skip_gguf_value(cls, buffer: Union[bytes, bytearray], offset: int, value_type: int) -> int:
+        # GGUF value type enum:
+        # UINT8, INT8, UINT16, INT16, UINT32, INT32, FLOAT32, BOOL, STRING,
+        # ARRAY, UINT64, INT64, FLOAT64 = 0..12
+        if value_type in (0, 1, 7):
+            return offset + 1
+        if value_type in (2, 3):
+            return offset + 2
+        if value_type in (4, 5, 6):
+            return offset + 4
+        if value_type in (10, 11, 12):
+            return offset + 8
+        if value_type == 8:
+            length, offset = cls._read_gguf_u64(buffer, offset)
+            return offset + length
+        if value_type == 9:
+            element_type, offset = cls._read_gguf_u32(buffer, offset)
+            count, offset = cls._read_gguf_u64(buffer, offset)
+            for _ in range(count):
+                offset = cls._skip_gguf_value(buffer, offset, element_type)
+            return offset
+        raise ValueError(f"Unsupported GGUF metadata value type: {value_type}")
+
+    @classmethod
+    def _read_gguf_metadata(cls, model_path: str) -> Dict[str, Any]:
+        with open(model_path, "rb") as f:
+            header = f.read(32 * 1024 * 1024)
+        if header[:4] != b"GGUF":
+            return {}
+
+        offset = 4
+        version, offset = cls._read_gguf_u32(header, offset)
+        tensor_count, offset = cls._read_gguf_u64(header, offset)
+        kv_count, offset = cls._read_gguf_u64(header, offset)
+        metadata: Dict[str, Any] = {
+            "__version__": version,
+            "__tensor_count__": tensor_count,
+            "__kv_count__": kv_count,
+        }
+
+        for _ in range(kv_count):
+            key_len, offset = cls._read_gguf_u64(header, offset)
+            key = bytes(header[offset:offset + key_len]).decode("utf-8")
+            offset += key_len
+            value_type, offset = cls._read_gguf_u32(header, offset)
+            value_offset = offset
+            if value_type == 4:
+                metadata[key] = struct.unpack_from("<I", header, value_offset)[0]
+            elif value_type == 8:
+                length, string_offset = cls._read_gguf_u64(header, value_offset)
+                metadata[key] = bytes(header[string_offset:string_offset + length]).decode("utf-8", errors="replace")
+            offset = cls._skip_gguf_value(header, offset, value_type)
+        return metadata
+
+    @classmethod
+    def _patch_gguf_u32_metadata(cls, source_path: str, target_path: str, patches: Dict[str, int]) -> bool:
+        shutil.copyfile(source_path, target_path)
+        with open(target_path, "r+b") as f:
+            data = bytearray(f.read(32 * 1024 * 1024))
+            if data[:4] != b"GGUF":
+                return False
+
+            offset = 4
+            _, offset = cls._read_gguf_u32(data, offset)
+            _, offset = cls._read_gguf_u64(data, offset)
+            kv_count, offset = cls._read_gguf_u64(data, offset)
+            patched = False
+
+            for _ in range(kv_count):
+                key_len, offset = cls._read_gguf_u64(data, offset)
+                key = bytes(data[offset:offset + key_len]).decode("utf-8")
+                offset += key_len
+                value_type, offset = cls._read_gguf_u32(data, offset)
+                value_offset = offset
+                if key in patches and value_type == 4:
+                    struct.pack_into("<I", data, value_offset, int(patches[key]))
+                    patched = True
+                offset = cls._skip_gguf_value(data, offset, value_type)
+
+            if patched:
+                f.seek(0)
+                f.write(data)
+            return patched
+
+    def _prepare_gguf_for_llama_cpp(self, model_path: str) -> str:
+        if not self.patch_hiero_gguf_metadata:
+            return model_path
+        if "horus-hiero" not in self.model_id.lower():
+            return model_path
+
+        try:
+            metadata = self._read_gguf_metadata(model_path)
+        except Exception:
+            return model_path
+
+        if (
+            metadata.get("general.architecture") != "qwen35"
+            or metadata.get("qwen35.block_count") != 33
+            or metadata.get("qwen35.nextn_predict_layers") != 1
+        ):
+            return model_path
+
+        source = Path(model_path)
+        fingerprint = hashlib.sha256(
+            f"{source.resolve()}:{source.stat().st_size}:{source.stat().st_mtime_ns}".encode("utf-8")
+        ).hexdigest()[:16]
+        patch_dir = Path(
+            self.patched_gguf_dir
+            or os.environ.get("NEURALNODE_PATCHED_GGUF_DIR", "")
+            or source.parent / ".neuralnode_patched"
+        )
+        patch_dir.mkdir(parents=True, exist_ok=True)
+        patched_path = patch_dir / f"{source.stem}.neuralnode-qwen35-block32-{fingerprint}{source.suffix}"
+
+        if patched_path.exists() and patched_path.stat().st_size == source.stat().st_size:
+            return str(patched_path)
+
+        self._patch_gguf_u32_metadata(
+            str(source),
+            str(patched_path),
+            {
+                "qwen35.block_count": 32,
+                "qwen35.nextn_predict_layers": 0,
+            },
+        )
+        return str(patched_path)
 
     def load(self) -> "HorusProvider":
         self._configure_external_logging()
@@ -1020,9 +1316,12 @@ class HorusProvider(BaseLLMProvider):
                     else:
                         os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = prev_disable_progress
 
+        model_path = self._prepare_gguf_for_llama_cpp(model_path)
+        self.model_path = model_path
+
         llama_kwargs: Dict[str, Any] = {
             "model_path": model_path,
-            "n_ctx": HORUS_CONTEXT_WINDOW,
+            "n_ctx": self._runtime_context_window(),
             "verbose": False,
             "n_gpu_layers": self._resolve_n_gpu_layers(),
         }
@@ -1047,7 +1346,19 @@ class HorusProvider(BaseLLMProvider):
                 except Exception:
                     cpu_kwargs = dict(base_kwargs)
                     cpu_kwargs["n_gpu_layers"] = 0
-                    self.model = Llama(**cpu_kwargs)
+                    try:
+                        self.model = Llama(**cpu_kwargs)
+                    except Exception as exc:
+                        raise RuntimeError(
+                            "Failed to load Horus GGUF with llama.cpp.\n"
+                            f"Model file: {model_path}\n"
+                            f"Runtime context window: {llama_kwargs.get('n_ctx')}\n"
+                            "The file was downloaded, but llama.cpp could not initialize it. "
+                            "This usually means the GGUF file is incompatible with the installed "
+                            "llama-cpp-python build, the GGUF conversion is invalid, or the file "
+                            "requires a newer llama.cpp backend. Try upgrading llama-cpp-python, "
+                            "using a different quantization, or loading the Transformers model variant."
+                        ) from exc
         return self
 
     def _resolve_gguf_turboquant_kwargs(self) -> Dict[str, Any]:
@@ -1278,7 +1589,13 @@ class HorusProvider(BaseLLMProvider):
                 raise TypeError(f"Unsupported message type: {type(message)!r}")
         return normalized
 
-    def _render_prompt(self, messages: Sequence[Dict[str, str]]) -> str:
+    def _render_prompt(
+        self,
+        messages: Sequence[Dict[str, str]],
+        *,
+        thinking: Optional[bool] = None,
+        show_thinking: bool = False,
+    ) -> str:
         """Render messages using the tokenizer's chat template if available."""
         # Filter out empty system messages and normalize
         normalized_messages = []
@@ -1291,16 +1608,29 @@ class HorusProvider(BaseLLMProvider):
         has_system = any(m["role"] == "system" and m["content"].strip() for m in normalized_messages)
         if not has_system:
             normalized_messages.insert(0, {"role": "system", "content": UNIFIED_SYSTEM_PROMPT})
+
+        if thinking is not None:
+            thinking_instruction = self._thinking_instruction(thinking, show_thinking)
+            for m in normalized_messages:
+                if m["role"] == "system":
+                    m["content"] = f"{m['content'].rstrip()}\n\n{thinking_instruction}"
+                    break
         
         # If tokenizer is loaded and has apply_chat_template, use it
         if self.tokenizer is not None and hasattr(self.tokenizer, "apply_chat_template"):
             try:
                 # Use the model's built-in chat template
-                prompt = self.tokenizer.apply_chat_template(
-                    normalized_messages,
-                    tokenize=False,
-                    add_generation_prompt=True,
-                )
+                template_kwargs = {
+                    "tokenize": False,
+                    "add_generation_prompt": True,
+                }
+                if thinking is not None:
+                    template_kwargs["enable_thinking"] = bool(thinking)
+                try:
+                    prompt = self.tokenizer.apply_chat_template(normalized_messages, **template_kwargs)
+                except TypeError:
+                    template_kwargs.pop("enable_thinking", None)
+                    prompt = self.tokenizer.apply_chat_template(normalized_messages, **template_kwargs)
                 return prompt
             except Exception as exc:
                 self._warn("Chat template failed, falling back to unified format: %s", exc)
@@ -1327,6 +1657,33 @@ class HorusProvider(BaseLLMProvider):
 
         parts.append("<|assistant|>")
         return "\n".join(parts)
+
+    @staticmethod
+    def _thinking_instruction(thinking: bool, show_thinking: bool) -> str:
+        if thinking:
+            if show_thinking:
+                return (
+                    "Thinking mode is enabled. Put concise reasoning inside <think>...</think>, "
+                    "then provide the final answer."
+                )
+            return (
+                "Thinking mode is enabled. Reason internally before answering, but do not reveal "
+                "the reasoning or any <think> block. Return only the final answer."
+            )
+        return (
+            "Thinking mode is disabled. Answer directly and do not include hidden reasoning, "
+            "chain-of-thought, or <think> blocks."
+        )
+
+    @staticmethod
+    def _strip_thinking_blocks(text: str) -> str:
+        cleaned = text or ""
+        cleaned = re.sub(r"<think>.*?</think>", "", cleaned, flags=re.DOTALL | re.IGNORECASE)
+        cleaned = re.sub(r"(?is)^.*?</think>", "", cleaned)
+        cleaned = re.sub(r"(?is)<think>.*$", "", cleaned)
+        cleaned = re.sub(r"(?is)^\s*thinking\s*:\s*.*?(final answer\s*:)", "", cleaned)
+        cleaned = re.sub(r"(?im)^\s*final answer\s*:\s*", "", cleaned)
+        return cleaned.strip()
 
     def _resolve_generation_settings(self, **kwargs) -> Dict[str, Any]:
         settings = dict(self.generation_config)
@@ -1382,7 +1739,7 @@ class HorusProvider(BaseLLMProvider):
 
         settings = self._resolve_generation_settings(**kwargs)
         max_new_tokens = int(settings.get("max_new_tokens", 512))
-        max_input_tokens = max(HORUS_CONTEXT_WINDOW - max_new_tokens, 1)
+        max_input_tokens = max(self._context_window() - max_new_tokens, 1)
 
         inputs = self.tokenizer(
             prompt,
@@ -1432,7 +1789,19 @@ class HorusProvider(BaseLLMProvider):
                 top_p=settings.get("top_p", 0.85),
                 top_k=settings.get("top_k", 50),
                 repeat_penalty=settings.get("repetition_penalty", 1.2),
-                stop=["<|end|>", "<|user|>", "\n<|user|>", "<|assistant|>", "\n<|assistant|>"],
+                stop=[
+                    "<|end|>",
+                    "<|endoftext|>",
+                    "<|im_end|>",
+                    "<|user|>",
+                    "\n<|user|>",
+                    "<|assistant|>",
+                    "\n<|assistant|>",
+                    "<|im_start|>user",
+                    "\n<|im_start|>user",
+                    "<|im_start|>assistant",
+                    "\n<|im_start|>assistant",
+                ],
                 echo=False,
             )
         return self._clean_generated_text(output["choices"][0]["text"])
@@ -1440,7 +1809,24 @@ class HorusProvider(BaseLLMProvider):
     def _clean_generated_text(self, text: str) -> str:
         """Clean generation artifacts from Horus outputs."""
         cleaned = text or ""
-        cleaned = cleaned.replace("<|assistant|>", "").replace("<|user|>", "").replace("<|end|>", "")
+        special_markers = (
+            "<|assistant|>",
+            "<|user|>",
+            "<|system|>",
+            "<|end|>",
+            "<|endoftext|>",
+            "<|im_end|>",
+            "<|im_start|>",
+            "<|vision_start|>",
+            "<|vision_end|>",
+            "<|image_pad|>",
+            "<|video_pad|>",
+        )
+        for marker in special_markers:
+            cleaned = cleaned.replace(marker, "")
+        partial_special = cleaned.find("<|")
+        if partial_special >= 0:
+            cleaned = cleaned[:partial_special]
         cleaned = re.sub(r"(?im)^\s*assistant\s*[:：]?\s*", "", cleaned)
         cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
         cleaned = cleaned.strip()
@@ -1662,8 +2048,10 @@ class HorusProvider(BaseLLMProvider):
                     "role": "system",
                     "content": UNIFIED_SYSTEM_PROMPT + tool_section
                 })
-        
-        prompt = self._render_prompt(normalized)
+
+        thinking = kwargs.pop("thinking", self.generation_config.get("thinking"))
+        show_thinking = bool(kwargs.pop("show_thinking", self.generation_config.get("show_thinking", False)))
+        prompt = self._render_prompt(normalized, thinking=thinking, show_thinking=show_thinking)
         generation_kwargs = {
             "temperature": temperature if temperature is not None else self.generation_config["temperature"],
             "max_new_tokens": max_tokens or self.generation_config["max_new_tokens"],
@@ -1672,7 +2060,7 @@ class HorusProvider(BaseLLMProvider):
         }
 
         if stream:
-            return self.stream_chat(normalized, **generation_kwargs)
+            return self.stream_chat(normalized, **generation_kwargs, thinking=thinking, show_thinking=show_thinking)
 
         if self._is_gguf_model_id(self.model_id):
             content = self._generate_gguf_text(prompt, **generation_kwargs)
@@ -1686,6 +2074,8 @@ class HorusProvider(BaseLLMProvider):
                 last_user_message = m.get("content", "")
                 break
         content = self._postprocess_assistant_text(content, last_user_message)
+        if not show_thinking:
+            content = self._strip_thinking_blocks(content)
 
         # Parse tool calls from response if tools were provided
         tool_calls = []
@@ -1714,7 +2104,9 @@ class HorusProvider(BaseLLMProvider):
             raise RuntimeError("Horus Lens is a text-to-image model. Use generate_image(prompt) instead of stream_chat().")
 
         normalized = self._normalize_messages(messages)
-        prompt = self._render_prompt(normalized)
+        thinking = kwargs.pop("thinking", self.generation_config.get("thinking"))
+        show_thinking = bool(kwargs.pop("show_thinking", self.generation_config.get("show_thinking", False)))
+        prompt = self._render_prompt(normalized, thinking=thinking, show_thinking=show_thinking)
 
         if self._is_gguf_model_id(self.model_id):
             last_user_message = ""
@@ -1723,7 +2115,10 @@ class HorusProvider(BaseLLMProvider):
                     last_user_message = message.get("content", "")
                     break
             yield StreamingChunk(
-                content=self._postprocess_assistant_text(
+                content=self._strip_thinking_blocks(self._postprocess_assistant_text(
+                    self._generate_gguf_text(prompt, **kwargs),
+                    last_user_message,
+                )) if not show_thinking else self._postprocess_assistant_text(
                     self._generate_gguf_text(prompt, **kwargs),
                     last_user_message,
                 ),
@@ -1738,7 +2133,7 @@ class HorusProvider(BaseLLMProvider):
 
         settings = self._resolve_generation_settings(**kwargs)
         max_new_tokens = int(settings.get("max_new_tokens", 512))
-        max_input_tokens = max(HORUS_CONTEXT_WINDOW - max_new_tokens, 1)
+        max_input_tokens = max(self._context_window() - max_new_tokens, 1)
         inputs = self.tokenizer(
             prompt,
             return_tensors="pt",
@@ -1851,7 +2246,8 @@ class HorusProvider(BaseLLMProvider):
             "generation_config": dict(self.generation_config),
             "flash_attention": self.use_flash_attention,
             "attn_implementation": self.attn_implementation,
-            "context_window": HORUS_CONTEXT_WINDOW,
+            "context_window": self._context_window(),
+            "runtime_context_window": self._runtime_context_window(),
             "chat_template": UNIFIED_CHAT_TEMPLATE_NAME,
             "tts_enabled": self.enable_tts,
             "tts_voice_id": self.tts_voice_id,
@@ -2063,8 +2459,15 @@ class HorusProvider(BaseLLMProvider):
         return results
 
     @classmethod
-    def list_available_models(cls) -> Dict[str, Dict[str, Any]]:
-        return {model_id: dict(info, context_window=HORUS_CONTEXT_WINDOW) for model_id, info in cls.HORUS_MODELS.items()}
+    def list_available_models(cls, canonical: bool = False) -> Dict[str, Dict[str, Any]]:
+        return {
+            (model_id if canonical else cls._display_model_id(model_id, info)): dict(
+                info,
+                model_id=model_id,
+                context_window=info.get("context_window", HORUS_CONTEXT_WINDOW),
+            )
+            for model_id, info in cls.HORUS_MODELS.items()
+        }
 
 
 def print_model_list():
@@ -2092,12 +2495,13 @@ class HorusModel(HorusProvider):
     class model:
         @staticmethod
         def List() -> List[Dict[str, str]]:
-            """Return available Horus models with exact official Hugging Face names."""
+            """Return available Horus models with simple NeuralNode model IDs."""
             items: List[Dict[str, str]] = []
             for model_id, info in HorusProvider.list_available_models().items():
                 items.append(
                     {
                         "model_id": model_id,
+                        "canonical_model_id": str(info.get("model_id", model_id)),
                         "official_name": str(info.get("official_name", HorusProvider._infer_official_name(model_id))),
                         "type": str(info.get("type", "unknown")),
                     }
@@ -2122,11 +2526,11 @@ Horus = HorusModel
 HorusLensModel = HorusModel
 
 
-def load_horus(model_id: str = "tokenaii/horus", **kwargs) -> HorusProvider:
+def load_horus(model_id: str = "horus", **kwargs) -> HorusProvider:
     return HorusProvider(model_id=model_id, **kwargs).load()
 
 
-def load_horus_lens(model_id: str = "tokenaii/Horus-Lens-1.0", **kwargs) -> HorusProvider:
+def load_horus_lens(model_id: str = "Horus-Lens-1.0", **kwargs) -> HorusProvider:
     return HorusProvider(model_id=model_id, **kwargs).load()
 
 

@@ -6,7 +6,7 @@ import neuralnode as nn
 
 # Use only cached files, no internet
 model = nn.HorusModel(
-    "tokenaii/horus",
+    "horus",
     local_files_only=True,
 ).load()
 
