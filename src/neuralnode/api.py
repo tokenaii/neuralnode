@@ -76,13 +76,25 @@ class APIKeyStore:
                 raise RuntimeError("The NeuralNode admin token already exists.") from exc
         return token
 
-    def create_user_token(self, admin_token: str, rpm_limit: Optional[int] = None) -> str:
+    def create_user_token(
+        self,
+        admin_token: str,
+        rpm_limit: Optional[int] = None,
+        *,
+        tier: str = "basic",
+    ) -> str:
         admin = self.authenticate(admin_token)
         if not admin or admin["role"] != "admin":
             raise PermissionError("A valid admin token is required.")
-        limit = self.rpm_limit if rpm_limit is None else rpm_limit
-        if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
-            raise ValueError("rpm_limit must be at least 1.")
+        tier = tier.lower()
+        if tier not in {"basic", "elite"}:
+            raise ValueError("tier must be 'basic' or 'elite'.")
+        if tier == "elite":
+            limit = None
+        else:
+            limit = self.rpm_limit if rpm_limit is None else rpm_limit
+            if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+                raise ValueError("Basic tier rpm_limit must be an integer of at least 1.")
         token = self._new_token()
         with self._connect() as connection:
             connection.execute(
@@ -110,7 +122,7 @@ class APIKeyStore:
             if row is None:
                 return None, False
             metadata = dict(row)
-            if metadata["role"] == "admin":
+            if metadata["role"] == "admin" or metadata["rpm_limit"] is None:
                 return metadata, True
             now = int(time.time())
             count = connection.execute(
@@ -191,7 +203,10 @@ def create_api_app(
         metadata = store.authenticate(get_token(authorization))
         if metadata is None:
             raise HTTPException(status_code=401, detail={"message": "Invalid or revoked access token."})
-        return {"role": metadata["role"], "rpm_limit": metadata["rpm_limit"]}
+        tier = "Admin" if metadata["role"] == "admin" else (
+            "elite" if metadata["rpm_limit"] is None else "basic"
+        )
+        return {"role": metadata["role"], "tier": tier.title(), "rpm_limit": metadata["rpm_limit"]}
 
     @app.post("/v1/chat/completions")
     def chat_completions(payload: dict[str, Any], authorization: Optional[str] = Header(default=None)):
@@ -237,11 +252,13 @@ def create_api_app(
         try:
             if payload.get("role", "user") == "admin":
                 raise ValueError("The owner admin token is created locally and can exist only once.")
+            tier = str(payload.get("tier", "basic")).lower()
             rpm_limit = payload.get("rpm_limit")
-            token = store.create_user_token(admin_token, rpm_limit)
+            token = store.create_user_token(admin_token, rpm_limit, tier=tier)
         except (ValueError, PermissionError) as exc:
             raise HTTPException(status_code=400, detail={"message": str(exc)}) from exc
-        return {"token": token, "role": "user", "rpm_limit": rpm_limit or store.rpm_limit}
+        effective_limit = None if tier == "elite" else (rpm_limit or store.rpm_limit)
+        return {"token": token, "role": "user", "tier": tier.title(), "rpm_limit": effective_limit}
 
     @app.delete("/v1/admin/tokens")
     def revoke_token(payload: dict[str, Any], authorization: Optional[str] = Header(default=None)):

@@ -42,7 +42,7 @@ print(ai.chat("Hello from NeuralNode"))
 
 ### H-Preview Model API
 
-NeuralNode includes an OpenAI-compatible API gateway for serving H-Preview through a vLLM-compatible server on another machine. The gateway creates `nn-` access tokens, supports one owner admin token without an RPM limit, and applies per-token RPM limits to user tokens. See [docs/model_api.md](docs/model_api.md) for deployment and Python client examples.
+NeuralNode includes an OpenAI-compatible API gateway for serving H-Preview through a vLLM-compatible server on another machine. The gateway creates `nn-` access tokens with `Basic` (RPM controlled) and `Elite` (no application RPM accounting) tiers, plus one owner admin token for managing them. See [docs/model_api.md](docs/model_api.md) for deployment and Python client examples.
 
 ```python
 import neuralnode as nn

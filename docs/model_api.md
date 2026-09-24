@@ -23,7 +23,7 @@ pip install "neuralnode[api]"
 neuralnode-api create-admin
 ```
 
-Save the one-time admin token securely. The admin token is unique to the database and is exempt from RPM limits. Create user tokens through the authenticated `POST /v1/admin/tokens` endpoint; each user token gets its own RPM limit (60 by default) and can be revoked by the admin. Set the gateway environment and start it:
+Save the one-time admin token securely. The owner admin token is unique to the database and exempt from RPM limits. Use it to issue `basic` or `elite` user tokens through `POST /v1/admin/tokens`. Basic tokens have a configurable RPM limit (60 by default); Elite tokens have no application RPM limit and their model requests are not recorded in the RPM counter. Both tiers can be revoked by the admin. Set the gateway environment and start it:
 
 ```bash
 H_PREVIEW_UPSTREAM_URL=http://GPU_SERVER:8000/v1
@@ -38,7 +38,7 @@ The gateway exposes authenticated `GET /v1/models` and `POST /v1/chat/completion
 
 ## Create tokens and call from Python
 
-Create an ordinary user token by calling the gateway with the admin token:
+Create a Basic token with an RPM limit or an Elite token without one:
 
 ```python
 import requests
@@ -47,9 +47,16 @@ ADMIN_TOKEN = "paste-the-one-time-admin-token-here"
 result = requests.post(
     "https://api.example.com/v1/admin/tokens",
     headers={"Authorization": "Bearer " + ADMIN_TOKEN},
-    json={"rpm_limit": 120},
+    json={"tier": "basic", "rpm_limit": 120},
 ).json()
-print(result["token"])
+basic_token = result["token"]
+
+elite = requests.post(
+    "https://api.example.com/v1/admin/tokens",
+    headers={"Authorization": "Bearer " + ADMIN_TOKEN},
+    json={"tier": "elite"},
+).json()
+elite_token = elite["token"]
 ```
 
 Use the generated user token through NeuralNode:
@@ -60,10 +67,10 @@ import neuralnode as nn
 ai = nn.NeuralNode(
     provider="h-preview",
     model="h-preview",
-    api_key="nn-...",
+    api_key=elite_token,
     base_url="https://api.example.com/v1",
 )
 print(ai.chat("Say hello in one sentence."))
 ```
 
-Alternatively set `NEURALNODE_API_KEY` and `NEURALNODE_API_BASE_URL` so the client reads them automatically. Only the owner should hold the admin token, since it bypasses RPM and can manage user credentials.
+Alternatively set `NEURALNODE_API_KEY` and `NEURALNODE_API_BASE_URL` so the client reads them automatically. Only the owner should hold the admin token, since it can manage user credentials. Elite removes NeuralNode's per-token RPM accounting; it does not remove GPU capacity, server availability, or upstream infrastructure limits.

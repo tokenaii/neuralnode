@@ -26,7 +26,7 @@ class HPreviewProvider(OpenAICompatibleProvider):
         return ProviderCapabilities(
             chat=True, text_completion=True, streaming=True, function_calling=True,
             tool_use=True, vision=False, json_mode=True, embeddings=False,
-            system_prompt=True, context_window=131072, max_output_tokens=8192,
+            system_prompt=True, context_window=262144, max_output_tokens=8192,
             async_support=True,
         )
 
