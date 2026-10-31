@@ -37,38 +37,42 @@ try:
     from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
 
     TRANSFORMERS_AVAILABLE = True
-except ImportError:
+except Exception as exc:
     TRANSFORMERS_AVAILABLE = False
     torch = None
     AutoModelForCausalLM = None
     AutoTokenizer = None
     TextIteratorStreamer = None
+    logger.warning("Horus Transformers support is unavailable: %s", exc)
 
 try:
     from diffusers import DiffusionPipeline
 
     DIFFUSERS_AVAILABLE = True
-except ImportError:
+except Exception as exc:
     DIFFUSERS_AVAILABLE = False
     DiffusionPipeline = None
+    logger.warning("Horus image generation support is unavailable: %s", exc)
 
 try:
     import llama_cpp
     from llama_cpp import Llama
 
     LLAMA_CPP_AVAILABLE = True
-except ImportError:
+except Exception as exc:
     LLAMA_CPP_AVAILABLE = False
     llama_cpp = None
     Llama = None
+    logger.warning("Horus GGUF support is unavailable: %s", exc)
 
 try:
     from huggingface_hub import hf_hub_download
 
     HF_HUB_AVAILABLE = True
-except ImportError:
+except Exception as exc:
     HF_HUB_AVAILABLE = False
     hf_hub_download = None
+    logger.warning("Hugging Face Hub support is unavailable: %s", exc)
 
 
 def _refresh_transformers_imports() -> None:
@@ -84,8 +88,9 @@ def _refresh_transformers_imports() -> None:
         AutoTokenizer = _AutoTokenizer
         TextIteratorStreamer = _TextIteratorStreamer
         TRANSFORMERS_AVAILABLE = True
-    except ImportError:
+    except Exception as exc:
         TRANSFORMERS_AVAILABLE = False
+        logger.warning("Horus Transformers support is unavailable: %s", exc)
 
 
 def _refresh_diffusers_imports() -> None:
@@ -95,8 +100,9 @@ def _refresh_diffusers_imports() -> None:
 
         DiffusionPipeline = _DiffusionPipeline
         DIFFUSERS_AVAILABLE = True
-    except ImportError:
+    except Exception as exc:
         DIFFUSERS_AVAILABLE = False
+        logger.warning("Horus image generation support is unavailable: %s", exc)
 
 
 def _refresh_llama_imports() -> None:
@@ -108,8 +114,9 @@ def _refresh_llama_imports() -> None:
         llama_cpp = _llama_cpp
         Llama = _Llama
         LLAMA_CPP_AVAILABLE = True
-    except ImportError:
+    except Exception as exc:
         LLAMA_CPP_AVAILABLE = False
+        logger.warning("Horus GGUF support is unavailable: %s", exc)
 
 
 def _refresh_hf_hub_imports() -> None:
@@ -119,8 +126,9 @@ def _refresh_hf_hub_imports() -> None:
 
         hf_hub_download = _hf_hub_download
         HF_HUB_AVAILABLE = True
-    except ImportError:
+    except Exception as exc:
         HF_HUB_AVAILABLE = False
+        logger.warning("Hugging Face Hub support is unavailable: %s", exc)
 
 
 from .base import BaseLLMProvider, ProviderCapabilities, ProviderType
