@@ -21,14 +21,14 @@ jobs:
       run: python -m pip install --upgrade build twine
 
     - name: Build source distribution and wheel
-      run: python -m build
+      run: python -m build --outdir .ci-dist
 
     - name: Validate package metadata
-      run: python -m twine check dist/*
+      run: python -m twine check .ci-dist/*
 
     - name: Install wheel and verify package version
       run: |
-        python -m pip install --force-reinstall dist/*.whl
+        python -m pip install --force-reinstall .ci-dist/*.whl
         python -c "import neuralnode; assert neuralnode.__version__ == '2.2.8'; print(neuralnode.__version__)"
 
   test:
