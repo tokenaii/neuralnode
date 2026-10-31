@@ -52,6 +52,8 @@ print(ai.chat("Hello from NeuralNode"))
 ```bash
 pip install "neuralnode[all]"
 pip install "neuralnode[horus]"
+pip install "neuralnode[image]"
+pip install "neuralnode[vision]"
 pip install "neuralnode[telegram]"
 pip install "neuralnode[replica]"
 pip install "neuralnode[speech]"
@@ -69,6 +71,33 @@ pip install "neuralnode[turboquant]"
 - Text-to-speech and Replica integrations
 - OpenAI-compatible local and hosted gateways
 - Provider registry and custom provider extensions
+
+### Hugging Face text-to-image
+
+Install the optional image dependencies and load a Diffusers-compatible
+text-to-image repository. `AutoPipelineForText2Image` supports compatible
+Diffusers model repositories; it does not make unrelated Hugging Face models
+image generators.
+
+```bash
+pip install "neuralnode[image]"
+```
+
+For local image input with a Transformers vision-language model, install the
+`vision` extra (`pip install "neuralnode[vision]"`) and use the existing
+`chat_with_image(...)` interface with a local image file.
+
+```python
+from neuralnode import load_hf_image_model
+
+image_model = load_hf_image_model("stabilityai/stable-diffusion-xl-base-1.0")
+image = image_model.generate_image(
+    "A small robot reading under a tree, watercolor illustration",
+    output_path="generated/robot.png",
+    num_inference_steps=25,
+    seed=42,
+)
+```
 
 ### One-turn voice agent
 

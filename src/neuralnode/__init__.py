@@ -71,6 +71,8 @@ from .providers import (
     download_repo,
     resolve_repo,
     load_hf_model,
+    HuggingFaceImageGenerator,
+    load_hf_image_model,
     BaseLLMProvider,
     # Registry & factories
     ProviderRegistry,
@@ -720,6 +722,8 @@ __all__ = [
     "download_repo",
     "resolve_repo",
     "load_hf_model",
+    "HuggingFaceImageGenerator",
+    "load_hf_image_model",
     "BaseLLMProvider",
     "ProviderRegistry",
     "create_provider",

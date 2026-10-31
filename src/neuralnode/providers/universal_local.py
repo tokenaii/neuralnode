@@ -11,6 +11,8 @@ Supports:
 import os
 import re
 import json
+import base64
+from io import BytesIO
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Iterator, Union, Callable
 from dataclasses import dataclass
@@ -103,6 +105,8 @@ class UniversalLocalProvider(BaseProvider):
 
         self._model = None
         self._tokenizer = None
+        self._processor = None
+        self._is_vision = False
         self._format: ModelFormat = ModelFormat.UNKNOWN
         self._info: Optional[ModelInfo] = None
         self._is_loaded = False
@@ -250,7 +254,7 @@ class UniversalLocalProvider(BaseProvider):
         """Load SafeTensors model using Transformers."""
         try:
             import torch
-            from transformers import AutoModelForCausalLM, AutoTokenizer
+            from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
         except ImportError:
             raise ImportError(
                 "transformers and torch required. Install: pip install transformers torch"
@@ -261,23 +265,46 @@ class UniversalLocalProvider(BaseProvider):
         if device == "auto":
             device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        # Load tokenizer
-        self._tokenizer = AutoTokenizer.from_pretrained(
-            str(self.model_path), trust_remote_code=True, local_files_only=True
-        )
-
-        if self._tokenizer.pad_token is None:
-            self._tokenizer.pad_token = self._tokenizer.eos_token
-
         # Load model
         load_kwargs = {
-            "torch_dtype": torch.float16 if device == "cuda" else torch.float32,
-            "device_map": "auto" if device == "cuda" else None,
+            "torch_dtype": torch.float16 if device.startswith("cuda") else torch.float32,
             "trust_remote_code": True,
             "local_files_only": True,
         }
 
-        self._model = AutoModelForCausalLM.from_pretrained(str(self.model_path), **load_kwargs)
+        config = AutoConfig.from_pretrained(
+            str(self.model_path), trust_remote_code=True, local_files_only=True
+        )
+        architectures = getattr(config, "architectures", None) or []
+        self._is_vision = getattr(config, "vision_config", None) is not None or any(
+            marker in architecture.lower()
+            for architecture in architectures
+            for marker in ("vision", "llava", "idefics", "paligemma", "florence")
+        )
+
+        if self._is_vision:
+            from transformers import AutoProcessor
+
+            try:
+                from transformers import AutoModelForImageTextToText as VisionModel
+            except ImportError:
+                from transformers import AutoModelForVision2Seq as VisionModel
+
+            self._processor = AutoProcessor.from_pretrained(
+                str(self.model_path), trust_remote_code=True, local_files_only=True
+            )
+            self._tokenizer = getattr(self._processor, "tokenizer", None)
+            self._model = VisionModel.from_pretrained(str(self.model_path), **load_kwargs)
+            self._model = self._model.to(device)
+        else:
+            if device.startswith("cuda"):
+                load_kwargs["device_map"] = "auto"
+            self._tokenizer = AutoTokenizer.from_pretrained(
+                str(self.model_path), trust_remote_code=True, local_files_only=True
+            )
+            if self._tokenizer.pad_token is None:
+                self._tokenizer.pad_token = self._tokenizer.eos_token
+            self._model = AutoModelForCausalLM.from_pretrained(str(self.model_path), **load_kwargs)
 
         if device == "cpu":
             self._model = self._model.to("cpu")
@@ -457,6 +484,9 @@ class UniversalLocalProvider(BaseProvider):
         """Chat using Transformers model."""
         import torch
 
+        if self._processor is not None:
+            return self._chat_vision_transformers(messages, **options)
+
         prompt = self._build_prompt(messages)
 
         inputs = self._tokenizer(
@@ -492,6 +522,139 @@ class UniversalLocalProvider(BaseProvider):
             tool_calls=[],
             usage={
                 "prompt_tokens": inputs["input_ids"].shape[1],
+                "completion_tokens": len(generated),
+            },
+        )
+
+    @staticmethod
+    def _open_message_images(message: Message):
+        """Decode local image metadata into RGB PIL images."""
+        metadata = message.metadata or {}
+        if metadata.get("image_url"):
+            raise ValueError(
+                "Local Hugging Face vision models require a local image path; "
+                "download URL images first to avoid fetching untrusted network targets."
+            )
+
+        encoded_images = metadata.get("images") or []
+        image_path = metadata.get("image_path")
+        if image_path and not encoded_images:
+            encoded_images = [image_path]
+
+        if not encoded_images:
+            return []
+
+        from PIL import Image
+
+        images = []
+        for value in encoded_images:
+            image_path = None
+            if isinstance(value, str) and len(value) < 4096:
+                try:
+                    candidate = Path(value)
+                    if candidate.is_file():
+                        image_path = candidate
+                except OSError:
+                    pass
+            if image_path is not None:
+                with Image.open(image_path) as image:
+                    images.append(image.convert("RGB"))
+                continue
+
+            if isinstance(value, str) and value.startswith("data:") and "," in value:
+                value = value.split(",", 1)[1]
+            raw = base64.b64decode(value, validate=True)
+            with Image.open(BytesIO(raw)) as image:
+                images.append(image.convert("RGB"))
+        return images
+
+    def _chat_vision_transformers(self, messages: List[Message], **options) -> LLMResponse:
+        """Run a Transformers vision-language model on text and local images."""
+        import torch
+
+        model_messages = []
+        images = []
+        image_counts = {}
+        for message in messages:
+            if message.role == MessageRole.TOOL:
+                continue
+            content = []
+            message_images = self._open_message_images(message)
+            image_counts[id(message)] = len(message_images)
+            for image in message_images:
+                content.append({"type": "image"})
+                images.append(image)
+            if message.content:
+                content.append({"type": "text", "text": message.content})
+            model_messages.append({"role": message.role.value, "content": content})
+
+        processor = self._processor
+        if hasattr(processor, "apply_chat_template"):
+            try:
+                prompt = processor.apply_chat_template(
+                    model_messages,
+                    add_generation_prompt=True,
+                    tokenize=False,
+                )
+            except (AttributeError, ValueError):
+                prompt = None
+        else:
+            prompt = None
+
+        image_token = getattr(processor, "image_token", None)
+        image_only = bool(images and not prompt and not isinstance(image_token, str))
+        if not image_only and (
+            not prompt or (images and isinstance(image_token, str) and image_token not in prompt)
+        ):
+            image_marker = image_token if isinstance(image_token, str) else "<image>"
+            prompt_parts = []
+            for message in messages:
+                if message.role == MessageRole.SYSTEM:
+                    prompt_parts.append(f"System: {message.content}")
+                elif message.role == MessageRole.USER:
+                    prompt_parts.append(
+                        f"User: {(image_marker + ' ') * image_counts.get(id(message), 0)}{message.content}"
+                    )
+                elif message.role == MessageRole.ASSISTANT:
+                    prompt_parts.append(f"Assistant: {message.content}")
+            prompt = "\n".join(prompt_parts) + "\nAssistant:"
+
+        if image_only:
+            # Captioning processors such as BLIP expect image-only inputs;
+            # arbitrary chat-style role text becomes decoder tokens and can
+            # consume the entire generation budget without producing a caption.
+            inputs = processor(images=images, return_tensors="pt")
+        else:
+            inputs = processor(
+                text=prompt,
+                images=images or None,
+                return_tensors="pt",
+            )
+        device = next(self._model.parameters()).device
+        inputs = {key: value.to(device) for key, value in inputs.items()}
+        temperature = options.get("temperature", 0.7)
+        generation_options = {
+            "max_new_tokens": options.get("max_tokens", 512),
+            "do_sample": temperature > 0,
+        }
+        if temperature > 0:
+            generation_options["temperature"] = temperature
+
+        with torch.no_grad():
+            outputs = self._model.generate(**inputs, **generation_options)
+        input_ids = inputs.get("input_ids")
+        if getattr(self._model.config, "is_encoder_decoder", False) or input_ids is None:
+            generated = outputs[0]
+        else:
+            generated = outputs[0][input_ids.shape[1] :]
+        response_text = processor.decode(generated, skip_special_tokens=True)
+        return LLMResponse(
+            content=response_text.strip(),
+            model=self._info.name if self._info else "vision-transformers",
+            provider="local-transformers",
+            tool_calls=[],
+            usage={
+                "prompt_tokens": int(input_ids.shape[1]) if input_ids is not None else 0,
                 "completion_tokens": len(generated),
             },
         )
@@ -551,6 +714,7 @@ class UniversalLocalProvider(BaseProvider):
             "tools": False,
             "streaming": False,
             "embeddings": self._format in [ModelFormat.SAFETENSORS, ModelFormat.PYTORCH],
+            "vision": self._is_vision,
         }
 
     def get_info(self) -> ModelInfo:
@@ -565,6 +729,8 @@ class UniversalLocalProvider(BaseProvider):
 
         self._model = None
         self._tokenizer = None
+        self._processor = None
+        self._is_vision = False
         self._is_loaded = False
 
         try:

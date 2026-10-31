@@ -56,11 +56,14 @@ class TestVoiceAgent(unittest.TestCase):
             response.json.return_value = {"text": "recognized"}
             post.return_value = response
 
-            text = HTTPSTT("http://localhost:5010", token="secret").transcribe(str(audio))
+            text = HTTPSTT("http://localhost:5010", token="secret").transcribe(
+                str(audio), language="en"
+            )
 
         self.assertEqual(text, "recognized")
         self.assertEqual(post.call_args.kwargs["data"], b"wav-data")
         self.assertEqual(post.call_args.kwargs["headers"]["X-Opet-Tts-Token"], "secret")
+        self.assertEqual(post.call_args.kwargs["params"], {"language": "en"})
 
     @patch("requests.post")
     def test_http_tts_saves_response_audio(self, post):

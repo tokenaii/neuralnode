@@ -130,7 +130,7 @@ class NeuralSpeech:
             import speech_recognition as sr_lib
         except ImportError:
             raise ImportError(
-                "speech_recognition is required. Install it:\n" "  pip install SpeechRecognition"
+                "speech_recognition is required. Install it:\n  pip install SpeechRecognition"
             )
 
         self.language = language
@@ -295,7 +295,7 @@ class NeuralSpeech:
             with self._sr.AudioFile(wav_io) as source:
                 return self._recognizer.record(source)
         except ImportError:
-            raise ImportError("pydub is required to transcribe MP3 files:\n" "  pip install pydub")
+            raise ImportError("pydub is required to transcribe MP3 files:\n  pip install pydub")
 
 
 class HTTPSTT:
@@ -333,8 +333,13 @@ class HTTPSTT:
         }
         if self.token:
             headers[self.token_header] = self.token
+        params = {"language": language} if language else None
         response = requests.post(
-            self.url, data=path.read_bytes(), headers=headers, timeout=self.timeout
+            self.url,
+            data=path.read_bytes(),
+            headers=headers,
+            params=params,
+            timeout=self.timeout,
         )
         response.raise_for_status()
         data = response.json()

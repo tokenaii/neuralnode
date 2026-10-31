@@ -113,6 +113,7 @@ from .local_providers import (
     TritonProvider,
 )
 from .universal_local import UniversalLocalProvider, load_local_model
+from .image_generation import HuggingFaceImageGenerator, load_hf_image_model
 from .hfhub import (
     repo_exists,
     repo_info,
@@ -333,6 +334,8 @@ __all__ = [
     "MLXProvider",
     "UniversalLocalProvider",
     "load_local_model",
+    "HuggingFaceImageGenerator",
+    "load_hf_image_model",
     # HF Hub
     "repo_exists",
     "repo_info",

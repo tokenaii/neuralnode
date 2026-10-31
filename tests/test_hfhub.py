@@ -1,7 +1,10 @@
 import sys
 import tempfile
 import unittest
+import base64
+from io import BytesIO
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, "src")
@@ -11,6 +14,22 @@ from neuralnode.providers.universal_local import (
     UniversalLocalProvider,
     _generation_options,
 )
+from neuralnode.core import Message, MessageRole
+
+
+class _FakeTensor:
+    def __init__(self, shape):
+        self.shape = shape
+        self.device = "cpu"
+
+    def to(self, _device):
+        return self
+
+    def __getitem__(self, _index):
+        return self
+
+    def __len__(self):
+        return self.shape[1]
 
 
 class TestHFHubHelpers(unittest.TestCase):
@@ -54,6 +73,30 @@ class TestHFHubHelpers(unittest.TestCase):
             self.assertTrue((model_dir / "config.json").is_file())
             self.assertTrue((model_dir / "shards/model-00001.safetensors").is_file())
             self.assertTrue((model_dir / "shards/model-00002.safetensors").is_file())
+
+    @patch("neuralnode.providers.hfhub.repo_info", return_value={"private": False})
+    @patch(
+        "neuralnode.providers.hfhub.list_repo_files",
+        return_value=["model.safetensors", "config.json", "preprocessor_config.json"],
+    )
+    @patch("neuralnode.providers.hfhub._download_file")
+    def test_download_repo_includes_vision_processor_config(
+        self, download_file, _list_files, _repo_info
+    ):
+        def write_file(_repo_id, path, dest, _progress_callback=None):
+            output = dest.joinpath(*Path(path).parts)
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text("fixture")
+            return output
+
+        download_file.side_effect = write_file
+        with tempfile.TemporaryDirectory() as cache:
+            model_dir = download_repo("org/vision", cache_dir=cache)
+
+        self.assertIn(
+            "preprocessor_config.json",
+            [call.args[1] for call in download_file.call_args_list],
+        )
 
     @patch("neuralnode.providers.hfhub.repo_info", return_value={"private": False})
     @patch("neuralnode.providers.hfhub.list_repo_files", return_value=["model.gguf"])
@@ -108,6 +151,99 @@ class TestHFHubHelpers(unittest.TestCase):
 
         self.assertTrue(options["do_sample"])
         self.assertEqual(options["temperature"], 0.4)
+
+    def test_local_vision_chat_passes_decoded_image_to_processor(self):
+        from PIL import Image
+
+        image_buffer = BytesIO()
+        Image.new("RGB", (2, 2), color="red").save(image_buffer, format="PNG")
+        image_b64 = base64.b64encode(image_buffer.getvalue()).decode("ascii")
+
+        inputs = {"input_ids": _FakeTensor((1, 2))}
+        processor = MagicMock()
+        processor.image_token = "<image>"
+        processor.apply_chat_template.return_value = "describe this image"
+        processor.return_value = inputs
+        processor.decode.return_value = "a red image"
+        model = MagicMock()
+        model.config = SimpleNamespace(is_encoder_decoder=False)
+        model.parameters.return_value = iter([SimpleNamespace(device="cpu")])
+        model.generate.return_value = _FakeTensor((1, 4))
+        torch = SimpleNamespace(no_grad=lambda: __import__("contextlib").nullcontext())
+
+        with tempfile.TemporaryDirectory() as model_dir:
+            provider = UniversalLocalProvider(model_path=model_dir, device="cpu")
+            provider._processor = processor
+            provider._model = model
+            # The model is mocked so this does not need model weights or a GPU.
+            with patch.dict(sys.modules, {"torch": torch}):
+                result = provider._chat_vision_transformers(
+                    [
+                        Message(
+                            role=MessageRole.USER,
+                            content="What is shown?",
+                            metadata={"images": [image_b64]},
+                        )
+                    ],
+                    temperature=0,
+                )
+
+        self.assertEqual(result.content, "a red image")
+        self.assertEqual(len(processor.call_args.kwargs["images"]), 1)
+        self.assertIn("<image>", processor.call_args.kwargs["text"])
+        self.assertFalse(model.generate.call_args.kwargs["do_sample"])
+
+    def test_local_vision_provider_rejects_remote_image_urls(self):
+        with self.assertRaisesRegex(ValueError, "local image path"):
+            UniversalLocalProvider._open_message_images(
+                Message(
+                    role=MessageRole.USER,
+                    content="describe",
+                    metadata={"image_url": "https://example.com/a.png"},
+                )
+            )
+
+    def test_captioning_processor_receives_image_without_chat_prompt(self):
+        from PIL import Image
+
+        image_buffer = BytesIO()
+        Image.new("RGB", (2, 2), color="blue").save(image_buffer, format="PNG")
+        image_b64 = base64.b64encode(image_buffer.getvalue()).decode("ascii")
+
+        class CaptionProcessor:
+            def __call__(self, **kwargs):
+                self.kwargs = kwargs
+                return {"pixel_values": _FakeTensor((1, 3))}
+
+            def decode(self, _generated, **_kwargs):
+                return "a blue image"
+
+        processor = CaptionProcessor()
+        model = MagicMock()
+        model.config = SimpleNamespace(is_encoder_decoder=True)
+        model.parameters.return_value = iter([SimpleNamespace(device="cpu")])
+        model.generate.return_value = _FakeTensor((1, 4))
+        torch = SimpleNamespace(no_grad=lambda: __import__("contextlib").nullcontext())
+
+        with tempfile.TemporaryDirectory() as model_dir:
+            provider = UniversalLocalProvider(model_path=model_dir, device="cpu")
+            provider._processor = processor
+            provider._model = model
+            with patch.dict(sys.modules, {"torch": torch}):
+                result = provider._chat_vision_transformers(
+                    [
+                        Message(
+                            role=MessageRole.USER,
+                            content="Describe it",
+                            metadata={"images": [image_b64]},
+                        )
+                    ],
+                    temperature=0,
+                )
+
+        self.assertEqual(result.content, "a blue image")
+        self.assertEqual(set(processor.kwargs), {"images", "return_tensors"})
+        self.assertEqual(len(processor.kwargs["images"]), 1)
 
 
 if __name__ == "__main__":
