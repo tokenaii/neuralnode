@@ -6,7 +6,7 @@
   <a href="https://pypi.org/project/neuralnode/"><img src="https://img.shields.io/pypi/v/neuralnode.svg?style=flat-square" alt="PyPI version"></a>
   <a href="https://pypi.org/project/neuralnode/"><img src="https://img.shields.io/pypi/pyversions/neuralnode.svg?style=flat-square" alt="Python versions"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Source--Available-172033.svg?style=flat-square" alt="Source-Available License"></a>
-  <a href="https://github.com/tokenaii/neuralnode/releases"><img src="https://img.shields.io/github/v/release/tokenaii/neuralnode?display_name=tag&sort=semver&style=flat-square" alt="Latest release"></a>
+  <a href="https://github.com/tokenaillc/neuralnode/releases"><img src="https://img.shields.io/github/v/release/tokenaillc/neuralnode?display_name=tag&sort=semver&style=flat-square" alt="Latest release"></a>
 </p>
 
 <p align="center"><strong>Connect models. Build AI.</strong></p>

@@ -212,9 +212,9 @@ dev = [
 [project.urls]
 Homepage = "https://assem.cloud/"
 Documentation = "https://neuralnode.readthedocs.io"
-Repository = "https://github.com/assemsabry/neuralnode"
-Issues = "https://github.com/assemsabry/neuralnode/issues"
-Changelog = "https://github.com/assemsabry/neuralnode/blob/main/CHANGELOG.md"
+Repository = "https://github.com/tokenaillc/neuralnode"
+Issues = "https://github.com/tokenaillc/neuralnode/issues"
+Changelog = "https://github.com/tokenaillc/neuralnode/blob/main/CHANGELOG.md"
 
 [project.scripts]
 neuralnode-api = "neuralnode.api:main"
