@@ -33,8 +33,16 @@ HF_API = "https://huggingface.co/api"
 HF_RESOLVE = "https://huggingface.co/resolve/main"
 
 # Common tokenizer/auxiliary files pulled along with weight files.
-_AUX_EXTS = ("tokenizer.json", "tokenizer_config.json", "vocab.json", "merges.txt",
-             "special_tokens_map.json", "generation_config.json", "config.json", "LICENSE")
+_AUX_EXTS = (
+    "tokenizer.json",
+    "tokenizer_config.json",
+    "vocab.json",
+    "merges.txt",
+    "special_tokens_map.json",
+    "generation_config.json",
+    "config.json",
+    "LICENSE",
+)
 
 
 def _auth_headers(extra: Optional[Dict[str, str]] = None) -> Dict[str, str]:
@@ -84,8 +92,9 @@ def infer_model_type(files: List[str]) -> str:
     return "unknown"
 
 
-def _download_file(repo_id: str, path: str, dest_dir: Path,
-                   progress_callback: Optional[Callable] = None) -> Path:
+def _download_file(
+    repo_id: str, path: str, dest_dir: Path, progress_callback: Optional[Callable] = None
+) -> Path:
     """Download a single file from HF repo into dest_dir preserving path."""
     out = dest_dir / Path(path).name
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -119,10 +128,13 @@ def _pick_weight_files(files: List[str], weight_suffixes=(".safetensors", ".bin"
     return candidates
 
 
-def download_repo(repo_id: str, file: Optional[str] = None,
-                  cache_dir: Optional[str] = None,
-                  include_aux: bool = True,
-                  progress_callback: Optional[Callable] = None) -> Path:
+def download_repo(
+    repo_id: str,
+    file: Optional[str] = None,
+    cache_dir: Optional[str] = None,
+    include_aux: bool = True,
+    progress_callback: Optional[Callable] = None,
+) -> Path:
     """Download an HF model (or specific file) locally.
 
     For GGUF repos (or when ``file`` is given), downloads exactly the file.
@@ -130,8 +142,10 @@ def download_repo(repo_id: str, file: Optional[str] = None,
     plus every weight file needed (skipping extra aux files). Returns path to the
     primary weight file or a repo folder.
     """
-    dest_root = Path(cache_dir) if cache_dir else Path(
-        os.path.expanduser(os.getenv("NEURALNODE_HF_CACHE", "~/.neuralnode/models/hf"))
+    dest_root = (
+        Path(cache_dir)
+        if cache_dir
+        else Path(os.path.expanduser(os.getenv("NEURALNODE_HF_CACHE", "~/.neuralnode/models/hf")))
     )
     dest = dest_root / repo_id.replace("/", "__")
     dest.mkdir(parents=True, exist_ok=True)
@@ -184,6 +198,7 @@ def load_hf_model(repo_id: str, device: str = "auto", **kwargs):
     # If it's a known TokenAI Horus model, prefer HorusModel for best performance.
     try:
         from .horus import HorusModel
+
         models = HorusModel.list_available_models(canonical=True)
         canonical = [mid for mid in models.keys()]
         if repo_id in canonical or repo_id in canonical:
@@ -194,6 +209,7 @@ def load_hf_model(repo_id: str, device: str = "auto", **kwargs):
 
     path = download_repo(repo_id)
     from .universal_local import UniversalLocalProvider
+
     return UniversalLocalProvider(
         model_path=str(path),
         device=device,
@@ -203,7 +219,14 @@ def load_hf_model(repo_id: str, device: str = "auto", **kwargs):
 
 
 __all__ = [
-    "HF_API", "HF_RESOLVE", "repo_exists", "repo_info", "list_repo_files",
-    "infer_model_type", "download_repo", "resolve_repo", "load_hf_model",
+    "HF_API",
+    "HF_RESOLVE",
+    "repo_exists",
+    "repo_info",
+    "list_repo_files",
+    "infer_model_type",
+    "download_repo",
+    "resolve_repo",
+    "load_hf_model",
     "_AUX_EXTS",
 ]

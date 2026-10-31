@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/neuralnode-logo-transparent.png" alt="NeuralNode — Connect models. Build AI." width="720">
+    <img src="media/neuralnode.png" alt="NeuralNode — Connect models. Build AI." width="720">
 </p>
 
 <p align="center">
@@ -69,6 +69,27 @@ pip install "neuralnode[turboquant]"
 - Text-to-speech and Replica integrations
 - OpenAI-compatible local and hosted gateways
 - Provider registry and custom provider extensions
+
+### One-turn voice agent
+
+Connect speech recognition, an agent, and speech synthesis in one sequential
+turn. This is suitable for file-based or push-to-talk workflows; it does not
+provide low-latency, full-duplex streaming audio.
+
+```python
+from neuralnode.speech import HTTPSTT
+from neuralnode.tts import HTTPTTS
+from neuralnode.voice import VoiceAgent
+
+voice_agent = VoiceAgent(
+    agent=ai.agent(tools=[...]),
+    speech=HTTPSTT("http://localhost:5010"),
+    tts=HTTPTTS("http://localhost:5012", voice="sara", language="en"),
+)
+turn = voice_agent.process_audio_file("question.wav", output_audio="answer.mp3")
+print(turn.transcript)
+print(turn.response)
+```
 
 ## Documentation
 

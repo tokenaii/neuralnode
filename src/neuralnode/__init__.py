@@ -64,7 +64,13 @@ from .core import (
 
 # ── Provider layer ────────────────────────────────────────────────────────────
 from .providers import (
-    repo_exists, repo_info, list_repo_files, infer_model_type, download_repo, resolve_repo, load_hf_model,
+    repo_exists,
+    repo_info,
+    list_repo_files,
+    infer_model_type,
+    download_repo,
+    resolve_repo,
+    load_hf_model,
     BaseLLMProvider,
     # Registry & factories
     ProviderRegistry,
@@ -156,6 +162,7 @@ from .tools import (
 # Vision support
 try:
     from .vision import VisionTool, build_vision_message, capture_screenshot
+
     _VISION_AVAILABLE = True
 except ImportError:
     _VISION_AVAILABLE = False
@@ -163,6 +170,7 @@ except ImportError:
 # TTS support
 try:
     from .tts import NeuralTTS, list_voices as tts_list_voices
+
     _TTS_AVAILABLE = True
 except ImportError:
     _TTS_AVAILABLE = False
@@ -170,6 +178,7 @@ except ImportError:
 # Speech recognition
 try:
     from .speech import NeuralSpeech, SUPPORTED_LANGUAGES as SPEECH_LANGUAGES
+
     _SPEECH_AVAILABLE = True
 except ImportError:
     _SPEECH_AVAILABLE = False
@@ -177,7 +186,13 @@ except ImportError:
 # Replica TTS module (standalone)
 try:
     from . import replica
-    from .replica import ReplicaTTS, list_voices as replica_list_voices, replica_voice_list, speak as replica_speak
+    from .replica import (
+        ReplicaTTS,
+        list_voices as replica_list_voices,
+        replica_voice_list,
+        speak as replica_speak,
+    )
+
     _REPLICA_AVAILABLE = True
 except ImportError:
     _REPLICA_AVAILABLE = False
@@ -185,6 +200,7 @@ except ImportError:
 # TurboQuant compression
 try:
     from .turboquant import TurboQuant, TurboQuantEngine, TurboQuantConfig
+
     _TURBOQUANT_AVAILABLE = True
 except ImportError:
     _TURBOQUANT_AVAILABLE = False
@@ -192,6 +208,7 @@ except ImportError:
 # Thinking Mode (structured reasoning for any LLM)
 try:
     from .thinking import ThinkingMode, ThinkingResponse, enable_thinking
+
     _THINKING_AVAILABLE = True
 except ImportError:
     _THINKING_AVAILABLE = False
@@ -199,10 +216,19 @@ except ImportError:
 # Chains module
 try:
     from .chains import (
-        BaseChain, ChainOutput, LLMChain, SequentialChain,
-        RouterChain, RetrievalQAChain, TransformChain, APIChain,
-        create_llm_chain, create_sequential_chain, create_retrieval_qa_chain
+        BaseChain,
+        ChainOutput,
+        LLMChain,
+        SequentialChain,
+        RouterChain,
+        RetrievalQAChain,
+        TransformChain,
+        APIChain,
+        create_llm_chain,
+        create_sequential_chain,
+        create_retrieval_qa_chain,
     )
+
     _CHAINS_AVAILABLE = True
 except ImportError:
     _CHAINS_AVAILABLE = False
@@ -216,18 +242,21 @@ try:
         TelegramBotBuilder,
         create_telegram_bot,
     )
+
     _TELEGRAM_AVAILABLE = True
 except ImportError:
     _TELEGRAM_AVAILABLE = False
 
 try:
     from .integrations.discord import DiscordBot
+
     _DISCORD_AVAILABLE = True
 except ImportError:
     _DISCORD_AVAILABLE = False
 
 try:
     from .integrations.slack import SlackBot
+
     _SLACK_AVAILABLE = True
 except ImportError:
     _SLACK_AVAILABLE = False
@@ -237,6 +266,7 @@ try:
         TwilioWhatsAppBot,
         create_twilio_whatsapp_bot,
     )
+
     _WHATSAPP_AVAILABLE = True
 except ImportError:
     _WHATSAPP_AVAILABLE = False
@@ -247,6 +277,7 @@ try:
         OpenClawServer,
         OpenClawClient,
     )
+
     _OPENCLAW_AVAILABLE = True
 except ImportError:
     _OPENCLAW_AVAILABLE = False
@@ -254,11 +285,17 @@ except ImportError:
 # Logging helper
 from .utils.logger import get_logger, setup_logging
 from .utils.dependencies import ensure_feature_dependencies
-from .api import APIKeyStore, H_PREVIEW_HF_REPO, H_PREVIEW_MODEL, create_api_app, generate_admin_token, run_api_server
-
-
+from .api import (
+    APIKeyStore,
+    H_PREVIEW_HF_REPO,
+    H_PREVIEW_MODEL,
+    create_api_app,
+    generate_admin_token,
+    run_api_server,
+)
 
 # ── Skill → tools mapping ─────────────────────────────────────────────────────
+
 
 def _resolve_skills(skills):
     """Expand skill names to concrete tool instances."""
@@ -280,18 +317,21 @@ def _resolve_skills(skills):
         elif skill in ("vision", "image", "vision_tool") and _VISION_AVAILABLE:
             pass  # VisionTool needs an LLM; added separately in agent()
         elif skill == "all":
-            tools.extend([
-                WebSearchTool(),
-                DateTimeTool(),
-                SystemOperationsTool(),
-                FileReaderTool(),
-                FileWriterTool(),
-                CalculatorTool(),
-            ])
+            tools.extend(
+                [
+                    WebSearchTool(),
+                    DateTimeTool(),
+                    SystemOperationsTool(),
+                    FileReaderTool(),
+                    FileWriterTool(),
+                    CalculatorTool(),
+                ]
+            )
     return tools
 
 
 # ── Main NeuralNode class ─────────────────────────────────────────────────────
+
 
 class NeuralNode:
     """The main entry-point for NeuralNode.
@@ -427,7 +467,9 @@ class NeuralNode:
 
         if stream:
             return (chunk.content for chunk in ensure_streaming_chunks(response))
-        return ensure_llm_response(response, default_model=self.model or "unknown", default_provider=self.provider_name).content
+        return ensure_llm_response(
+            response, default_model=self.model or "unknown", default_provider=self.provider_name
+        ).content
 
     def chat_with_image(
         self,
@@ -461,7 +503,9 @@ class NeuralNode:
             msgs.append(Message.system(sys))
         msgs.append(build_vision_message(message, image=image, image_url=image_url))
         response = self._llm.chat(msgs)
-        return ensure_llm_response(response, default_model=self.model or "unknown", default_provider=self.provider_name).content
+        return ensure_llm_response(
+            response, default_model=self.model or "unknown", default_provider=self.provider_name
+        ).content
 
     # ── Agent factory ─────────────────────────────────────────────────────────
 
@@ -654,68 +698,145 @@ if _VISION_AVAILABLE:
 
 __all__ = [
     "__version__",
-
     # Main class
     "NeuralNode",
-
     # Core types
-    "Message", "MessageRole", "ToolCall", "LLMResponse", "StreamingChunk",
-    "ToolResult", "ParameterSpec", "BaseTool", "BaseProvider", "BaseAgent", "Memory",
-
+    "Message",
+    "MessageRole",
+    "ToolCall",
+    "LLMResponse",
+    "StreamingChunk",
+    "ToolResult",
+    "ParameterSpec",
+    "BaseTool",
+    "BaseProvider",
+    "BaseAgent",
+    "Memory",
     # Providers
-    "repo_exists", "repo_info", "list_repo_files", "infer_model_type", "download_repo", "resolve_repo", "load_hf_model",
-    "BaseLLMProvider", "ProviderRegistry", "create_provider", "auto_select_provider",
-    "get_available_providers", "is_local_provider",
-    "OllamaProvider", "AnthropicProvider", "GoogleProvider",
-    "GroqProvider", "MistralProvider", "CohereProvider", "DeepSeekProvider",
-    "HorusCyberNano", "HorusCyberNanoAPIError", "HorusCyberNanoProvider",
+    "repo_exists",
+    "repo_info",
+    "list_repo_files",
+    "infer_model_type",
+    "download_repo",
+    "resolve_repo",
+    "load_hf_model",
+    "BaseLLMProvider",
+    "ProviderRegistry",
+    "create_provider",
+    "auto_select_provider",
+    "get_available_providers",
+    "is_local_provider",
+    "OllamaProvider",
+    "AnthropicProvider",
+    "GoogleProvider",
+    "GroqProvider",
+    "MistralProvider",
+    "CohereProvider",
+    "DeepSeekProvider",
+    "HorusCyberNano",
+    "HorusCyberNanoAPIError",
+    "HorusCyberNanoProvider",
     "HPreviewProvider",
-    "APIKeyStore", "H_PREVIEW_HF_REPO", "H_PREVIEW_MODEL",
-    "create_api_app", "generate_admin_token", "run_api_server",
-    "LlamaCppProvider", "TransformersProvider", "UniversalLocalProvider",
-    "Horus", "HorusLensModel", "HorusModel", "HorusProvider", "load_horus_lens", "print_model_list", "list_models",
-
+    "APIKeyStore",
+    "H_PREVIEW_HF_REPO",
+    "H_PREVIEW_MODEL",
+    "create_api_app",
+    "generate_admin_token",
+    "run_api_server",
+    "LlamaCppProvider",
+    "TransformersProvider",
+    "UniversalLocalProvider",
+    "Horus",
+    "HorusLensModel",
+    "HorusModel",
+    "HorusProvider",
+    "load_horus_lens",
+    "print_model_list",
+    "list_models",
     # Memory
-    "ConversationMemory", "FileMemory", "SlidingWindowMemory", "SummaryMemory",
-
+    "ConversationMemory",
+    "FileMemory",
+    "SlidingWindowMemory",
+    "SummaryMemory",
     # RAG
-    "RAG", "RAGPipeline", "create_rag",
-    "Document", "Chunk", "TextSplitter", "RecursiveCharacterTextSplitter",
-    "InMemoryVectorStore", "ChromaDBStore", "FAISSVectorStore",
-    "DocumentLoader", "load_documents", "split_documents",
-
+    "RAG",
+    "RAGPipeline",
+    "create_rag",
+    "Document",
+    "Chunk",
+    "TextSplitter",
+    "RecursiveCharacterTextSplitter",
+    "InMemoryVectorStore",
+    "ChromaDBStore",
+    "FAISSVectorStore",
+    "DocumentLoader",
+    "load_documents",
+    "split_documents",
     # Agents
-    "SimpleAgent", "ReActAgent", "ChainOfThoughtAgent", "ReflectiveAgent",
-    "ThinkingAgent", "AgentBuilder",
-    "create_agent", "create_react_agent", "create_thinking_agent",
+    "SimpleAgent",
+    "ReActAgent",
+    "ChainOfThoughtAgent",
+    "ReflectiveAgent",
+    "ThinkingAgent",
+    "AgentBuilder",
+    "create_agent",
+    "create_react_agent",
+    "create_thinking_agent",
     "AgentExecutorOutput",
-
     # Reasoning & Thinking
-    "UniversalReasoner", "ReasoningResult", "ReasoningStrategy", "reason",
-    "ThinkingMode", "ThinkingResponse", "enable_thinking",
-
+    "UniversalReasoner",
+    "ReasoningResult",
+    "ReasoningStrategy",
+    "reason",
+    "ThinkingMode",
+    "ThinkingResponse",
+    "enable_thinking",
     # Tools (full names)
-    "WebSearchTool", "FileReaderTool", "FileWriterTool",
-    "CalculatorTool", "PythonREPLTool", "DateTimeTool", "SystemOperationsTool",
-
+    "WebSearchTool",
+    "FileReaderTool",
+    "FileWriterTool",
+    "CalculatorTool",
+    "PythonREPLTool",
+    "DateTimeTool",
+    "SystemOperationsTool",
     # Tool short aliases
-    "WebSearch", "FileReader", "FileWriter", "Calculator", "DateTime", "SystemOps",
-
+    "WebSearch",
+    "FileReader",
+    "FileWriter",
+    "Calculator",
+    "DateTime",
+    "SystemOps",
     # Chains
-    "BaseChain", "ChainOutput", "LLMChain", "SequentialChain",
-    "RouterChain", "RetrievalQAChain", "TransformChain", "APIChain",
-    "create_llm_chain", "create_sequential_chain", "create_retrieval_qa_chain",
-
-    "get_logger", "setup_logging",
+    "BaseChain",
+    "ChainOutput",
+    "LLMChain",
+    "SequentialChain",
+    "RouterChain",
+    "RetrievalQAChain",
+    "TransformChain",
+    "APIChain",
+    "create_llm_chain",
+    "create_sequential_chain",
+    "create_retrieval_qa_chain",
+    "get_logger",
+    "setup_logging",
     "ensure_feature_dependencies",
 ]
 
 # Add optional exports
 if _CHAINS_AVAILABLE:
     __all__ += [
-        "BaseChain", "ChainOutput", "LLMChain", "SequentialChain",
-        "RouterChain", "RetrievalQAChain", "TransformChain", "APIChain",
-        "create_llm_chain", "create_sequential_chain", "create_retrieval_qa_chain"
+        "BaseChain",
+        "ChainOutput",
+        "LLMChain",
+        "SequentialChain",
+        "RouterChain",
+        "RetrievalQAChain",
+        "TransformChain",
+        "APIChain",
+        "create_llm_chain",
+        "create_sequential_chain",
+        "create_retrieval_qa_chain",
     ]
 if _VISION_AVAILABLE:
     __all__ += ["VisionTool", "build_vision_message", "capture_screenshot", "Vision"]
@@ -724,7 +845,13 @@ if _TTS_AVAILABLE:
 if _SPEECH_AVAILABLE:
     __all__ += ["NeuralSpeech", "SPEECH_LANGUAGES"]
 if _REPLICA_AVAILABLE:
-    __all__ += ["ReplicaTTS", "replica_list_voices", "replica_voice_list", "replica_speak", "replica"]
+    __all__ += [
+        "ReplicaTTS",
+        "replica_list_voices",
+        "replica_voice_list",
+        "replica_speak",
+        "replica",
+    ]
 if _TELEGRAM_AVAILABLE:
     __all__ += [
         "TelegramBot",
@@ -768,12 +895,14 @@ def list_models() -> dict:
     result = {}
     try:
         from .providers.horus import HorusModel
+
         result.update(HorusModel.list_models(canonical=True))
     except Exception:
         pass
     # Replica preview (TTS)
     try:
         from .replica import REPLICA_PREVIEW_MODEL, REPLICA_PREVIEW_STATUS
+
         result[REPLICA_PREVIEW_MODEL] = {
             "name": "Replica-Preview-0.6B",
             "task": "text-to-speech",

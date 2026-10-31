@@ -49,6 +49,36 @@ class OpenAICompatibleProvider(BaseLLMProvider):
     def get_custom_headers(self) -> Dict[str, str]:
         return {}
 
+    @staticmethod
+    def _payload_messages(messages):
+        """Convert NeuralNode messages to JSON-safe OpenAI chat messages."""
+        payload = []
+        for message in messages:
+            if hasattr(message, "to_dict"):
+                message = message.to_dict()
+            role = message.get("role", "user")
+            content = message.get("content", "")
+            metadata = message.get("metadata") or {}
+            images = metadata.get("images") or []
+            image_url = metadata.get("image_url")
+
+            if images or image_url:
+                content_parts = [{"type": "text", "text": content}]
+                media_type = metadata.get("image_media_type", "image/jpeg")
+                content_parts.extend(
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:{media_type};base64,{image}"},
+                    }
+                    for image in images
+                )
+                if image_url:
+                    content_parts.append({"type": "image_url", "image_url": {"url": image_url}})
+                content = content_parts
+
+            payload.append({"role": role, "content": content})
+        return payload
+
     def chat(
         self,
         messages,
@@ -72,7 +102,7 @@ class OpenAICompatibleProvider(BaseLLMProvider):
         }
         payload: Dict[str, Any] = {
             "model": selected_model,
-            "messages": messages,
+            "messages": self._payload_messages(messages),
             "temperature": temperature,
             "max_tokens": max_tokens or 4096,
         }
@@ -105,9 +135,10 @@ class OpenAICompatibleProvider(BaseLLMProvider):
     async def achat(self, messages, **kwargs):
         import httpx
 
+        selected_model = kwargs.pop("model", None) or self.model or self.default_model
         payload = {
             "messages": self._payload_messages(messages),
-            "model": self.model,
+            "model": selected_model,
             **kwargs,
         }
         headers = {
@@ -165,8 +196,6 @@ class OpenAICompatibleProvider(BaseLLMProvider):
             data = response.json()
         embeddings = [item.get("embedding", []) for item in data.get("data", [])]
         return embeddings[0] if isinstance(texts, str) and embeddings else embeddings
-
-
 
 
 class OpenAIChatProvider(OpenAICompatibleProvider):

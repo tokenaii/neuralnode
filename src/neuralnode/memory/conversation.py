@@ -31,6 +31,7 @@ from pathlib import Path
 
 from ..core import Memory, Message, MessageRole, ensure_llm_response
 
+
 class ConversationMemory(Memory):
     """Fast in-memory conversation storage.
 

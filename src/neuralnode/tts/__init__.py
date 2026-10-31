@@ -5,7 +5,7 @@ Simple usage:
 
     tts = NeuralTTS()
     tts.speak("Hello world!", output="hello.mp3")
-    
+
     # Or with a specific voice
     tts = NeuralTTS(voice="en-US-AriaNeural")
     tts.speak("Hello!", output="out.mp3")
@@ -32,47 +32,46 @@ logger = logging.getLogger(__name__)
 
 VOICES: Dict[str, Dict[str, Any]] = {
     # ── English (5 voices) ──
-    "en-US-AriaNeural":     {"lang": "en", "gender": "Female", "name": "Aria",    "locale": "en-US"},
-    "en-US-GuyNeural":      {"lang": "en", "gender": "Male",   "name": "Guy",     "locale": "en-US"},
-    "en-US-JennyNeural":    {"lang": "en", "gender": "Female", "name": "Jenny",   "locale": "en-US"},
-    "en-GB-SoniaNeural":    {"lang": "en", "gender": "Female", "name": "Sonia",   "locale": "en-GB"},
-    "en-GB-RyanNeural":     {"lang": "en", "gender": "Male",   "name": "Ryan",    "locale": "en-GB"},
-
+    "en-US-AriaNeural": {"lang": "en", "gender": "Female", "name": "Aria", "locale": "en-US"},
+    "en-US-GuyNeural": {"lang": "en", "gender": "Male", "name": "Guy", "locale": "en-US"},
+    "en-US-JennyNeural": {"lang": "en", "gender": "Female", "name": "Jenny", "locale": "en-US"},
+    "en-GB-SoniaNeural": {"lang": "en", "gender": "Female", "name": "Sonia", "locale": "en-GB"},
+    "en-GB-RyanNeural": {"lang": "en", "gender": "Male", "name": "Ryan", "locale": "en-GB"},
     # ── Arabic (3 voices) ──
-    "ar-EG-SalmaNeural":    {"lang": "ar", "gender": "Female", "name": "Salma",   "locale": "ar-EG"},
-    "ar-EG-ShakirNeural":   {"lang": "ar", "gender": "Male",   "name": "Shakir",  "locale": "ar-EG"},
-    "ar-SA-ZariyahNeural":  {"lang": "ar", "gender": "Female", "name": "Zariyah", "locale": "ar-SA"},
-
+    "ar-EG-SalmaNeural": {"lang": "ar", "gender": "Female", "name": "Salma", "locale": "ar-EG"},
+    "ar-EG-ShakirNeural": {"lang": "ar", "gender": "Male", "name": "Shakir", "locale": "ar-EG"},
+    "ar-SA-ZariyahNeural": {"lang": "ar", "gender": "Female", "name": "Zariyah", "locale": "ar-SA"},
     # ── French (2 voices) ──
-    "fr-FR-DeniseNeural":   {"lang": "fr", "gender": "Female", "name": "Denise",  "locale": "fr-FR"},
-    "fr-FR-HenriNeural":    {"lang": "fr", "gender": "Male",   "name": "Henri",   "locale": "fr-FR"},
-
+    "fr-FR-DeniseNeural": {"lang": "fr", "gender": "Female", "name": "Denise", "locale": "fr-FR"},
+    "fr-FR-HenriNeural": {"lang": "fr", "gender": "Male", "name": "Henri", "locale": "fr-FR"},
     # ── Spanish (2 voices) ──
-    "es-ES-ElviraNeural":   {"lang": "es", "gender": "Female", "name": "Elvira",  "locale": "es-ES"},
-    "es-MX-DaliaNeural":    {"lang": "es", "gender": "Female", "name": "Dalia",   "locale": "es-MX"},
-
+    "es-ES-ElviraNeural": {"lang": "es", "gender": "Female", "name": "Elvira", "locale": "es-ES"},
+    "es-MX-DaliaNeural": {"lang": "es", "gender": "Female", "name": "Dalia", "locale": "es-MX"},
     # ── German (2 voices) ──
-    "de-DE-KatjaNeural":    {"lang": "de", "gender": "Female", "name": "Katja",   "locale": "de-DE"},
-    "de-DE-ConradNeural":   {"lang": "de", "gender": "Male",   "name": "Conrad",  "locale": "de-DE"},
-
+    "de-DE-KatjaNeural": {"lang": "de", "gender": "Female", "name": "Katja", "locale": "de-DE"},
+    "de-DE-ConradNeural": {"lang": "de", "gender": "Male", "name": "Conrad", "locale": "de-DE"},
     # ── Japanese (1 voice) ──
-    "ja-JP-NanamiNeural":   {"lang": "ja", "gender": "Female", "name": "Nanami",  "locale": "ja-JP"},
-
+    "ja-JP-NanamiNeural": {"lang": "ja", "gender": "Female", "name": "Nanami", "locale": "ja-JP"},
     # ── Chinese (1 voice) ──
-    "zh-CN-XiaoxiaoNeural": {"lang": "zh", "gender": "Female", "name": "Xiaoxiao","locale": "zh-CN"},
-
+    "zh-CN-XiaoxiaoNeural": {
+        "lang": "zh",
+        "gender": "Female",
+        "name": "Xiaoxiao",
+        "locale": "zh-CN",
+    },
     # ── Korean (1 voice) ──
-    "ko-KR-SunHiNeural":    {"lang": "ko", "gender": "Female", "name": "SunHi",   "locale": "ko-KR"},
-
+    "ko-KR-SunHiNeural": {"lang": "ko", "gender": "Female", "name": "SunHi", "locale": "ko-KR"},
     # ── Italian (1 voice) ──
-    "it-IT-ElsaNeural":     {"lang": "it", "gender": "Female", "name": "Elsa",    "locale": "it-IT"},
-
+    "it-IT-ElsaNeural": {"lang": "it", "gender": "Female", "name": "Elsa", "locale": "it-IT"},
     # ── Portuguese (1 voice) ──
-    "pt-BR-FranciscaNeural":{"lang": "pt", "gender": "Female", "name": "Francisca","locale": "pt-BR"},
-
+    "pt-BR-FranciscaNeural": {
+        "lang": "pt",
+        "gender": "Female",
+        "name": "Francisca",
+        "locale": "pt-BR",
+    },
     # ── Turkish (1 voice) ──
-    "tr-TR-EmelNeural":     {"lang": "tr", "gender": "Female", "name": "Emel",    "locale": "tr-TR"},
-
+    "tr-TR-EmelNeural": {"lang": "tr", "gender": "Female", "name": "Emel", "locale": "tr-TR"},
     # ── Hindi (1 voice) ──
 }
 
@@ -155,7 +154,9 @@ class NeuralTTS:
         self.elevenlabs_model = elevenlabs_model
 
         if self.provider == "elevenlabs" and not self.api_key:
-            raise ValueError("ElevenLabs provider requires an api_key or ELEVENLABS_API_KEY env var.")
+            raise ValueError(
+                "ElevenLabs provider requires an api_key or ELEVENLABS_API_KEY env var."
+            )
 
     # ── public API ────────────────────────────
 
@@ -215,6 +216,7 @@ class NeuralTTS:
             loop = asyncio.get_event_loop()
             if loop.is_running():
                 import concurrent.futures
+
                 with concurrent.futures.ThreadPoolExecutor() as pool:
                     future = pool.submit(asyncio.run, self._aspeak_edge(text, output))
                     return future.result()
@@ -231,8 +233,7 @@ class NeuralTTS:
             import edge_tts
         except ImportError:
             raise ImportError(
-                "edge_tts is required for TTS. Install it:\n"
-                "  pip install edge-tts"
+                "edge_tts is required for TTS. Install it:\n" "  pip install edge-tts"
             )
 
         communicate = edge_tts.Communicate(
@@ -298,8 +299,47 @@ class NeuralTTS:
         return str(Path(output).resolve())
 
 
+class HTTPTTS:
+    """Text-to-speech adapter for HTTP services returning audio bytes."""
+
+    def __init__(
+        self,
+        base_url: str,
+        voice: Optional[str] = None,
+        language: str = "en",
+        token: Optional[str] = None,
+        endpoint: str = "/tts",
+        timeout: float = 90,
+        token_header: str = "X-Opet-Tts-Token",
+    ):
+        self.url = base_url.rstrip("/") + "/" + endpoint.lstrip("/")
+        self.voice = voice
+        self.language = language
+        self.token = token
+        self.timeout = timeout
+        self.token_header = token_header
+
+    def speak(self, text: str, output: str = "output.wav") -> str:
+        import requests
+
+        headers = {"Content-Type": "application/json"}
+        if self.token:
+            headers[self.token_header] = self.token
+        response = requests.post(
+            self.url,
+            json={"text": text, "language": self.language, "voice": self.voice},
+            headers=headers,
+            timeout=self.timeout,
+        )
+        response.raise_for_status()
+        path = Path(output)
+        path.write_bytes(response.content)
+        return str(path.resolve())
+
+
 __all__ = [
     "NeuralTTS",
+    "HTTPTTS",
     "list_voices",
     "tts_list_voices",
     "VOICES",

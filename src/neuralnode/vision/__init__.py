@@ -100,8 +100,7 @@ class VisionTool(BaseTool):
 
     name = "analyze_image"
     description = (
-        "Analyze an image using a vision AI model. "
-        "Provide a local file path or a public URL."
+        "Analyze an image using a vision AI model. " "Provide a local file path or a public URL."
     )
     parameters = {
         "image_path": ParameterSpec(
@@ -167,6 +166,7 @@ def capture_screenshot(output: str = "screenshot.png") -> str:
     """
     try:
         import pyautogui
+
         img = pyautogui.screenshot()
         img.save(output)
         return str(Path(output).resolve())
@@ -175,6 +175,7 @@ def capture_screenshot(output: str = "screenshot.png") -> str:
 
     try:
         from PIL import ImageGrab
+
         img = ImageGrab.grab()
         img.save(output)
         return str(Path(output).resolve())

@@ -51,6 +51,7 @@ class DateTimeTool(BaseTool):
         try:
             if timezone_offset is not None:
                 from datetime import timedelta
+
                 tz = timezone(timedelta(hours=timezone_offset))
                 now = datetime.now(tz)
             else:
@@ -142,9 +143,21 @@ class SystemOperationsTool(BaseTool):
     }
 
     OPERATIONS = {
-        "shutdown", "restart", "lock", "unlock", "sleep", "hibernate",
-        "logout", "screenshot", "open_app", "clipboard_get", "clipboard_set",
-        "volume_set", "volume_mute", "brightness_set", "notify",
+        "shutdown",
+        "restart",
+        "lock",
+        "unlock",
+        "sleep",
+        "hibernate",
+        "logout",
+        "screenshot",
+        "open_app",
+        "clipboard_get",
+        "clipboard_set",
+        "volume_set",
+        "volume_mute",
+        "brightness_set",
+        "notify",
     }
 
     @staticmethod
@@ -202,6 +215,7 @@ class SystemOperationsTool(BaseTool):
     def _op_lock(self, value=None, delay=0) -> ToolResult:
         if _OS == "windows":
             import ctypes
+
             ctypes.windll.user32.LockWorkStation()
         elif _OS == "linux":
             for args in (
@@ -222,7 +236,9 @@ class SystemOperationsTool(BaseTool):
         if _OS != "windows":
             return ToolResult.error("Unlock is only supported on Windows.")
         if not value:
-            return ToolResult.error("Password is required to unlock. Pass it via the 'value' parameter.")
+            return ToolResult.error(
+                "Password is required to unlock. Pass it via the 'value' parameter."
+            )
         # Note: programmatic unlock in Windows is very restricted.
         # This uses a basic approach – in practice the user must type their password.
         return ToolResult.ok(
@@ -266,6 +282,7 @@ class SystemOperationsTool(BaseTool):
         output = value or "screenshot.png"
         try:
             import pyautogui
+
             img = pyautogui.screenshot()
             img.save(output)
             return ToolResult.ok(f"Screenshot saved to {os.path.abspath(output)}")
@@ -274,11 +291,14 @@ class SystemOperationsTool(BaseTool):
             if _OS == "windows":
                 try:
                     from PIL import ImageGrab
+
                     img = ImageGrab.grab()
                     img.save(output)
                     return ToolResult.ok(f"Screenshot saved to {os.path.abspath(output)}")
                 except ImportError:
-                    return ToolResult.error("Install pyautogui or Pillow for screenshots: pip install pyautogui")
+                    return ToolResult.error(
+                        "Install pyautogui or Pillow for screenshots: pip install pyautogui"
+                    )
             elif _OS == "linux":
                 try:
                     subprocess.run(["scrot", output], check=True)
@@ -304,18 +324,20 @@ class SystemOperationsTool(BaseTool):
     def _op_clipboard_get(self, value=None, delay=0) -> ToolResult:
         try:
             import pyperclip
+
             text = pyperclip.paste()
             return ToolResult.ok(content=text)
         except ImportError:
             if _OS == "windows":
                 import ctypes
+
                 CF_TEXT = 1
                 ctypes.windll.user32.OpenClipboard(0)
                 try:
                     handle = ctypes.windll.user32.GetClipboardData(CF_TEXT)
                     if handle:
                         data = ctypes.c_char_p(handle)
-                        text = data.value.decode('utf-8', errors='replace')
+                        text = data.value.decode("utf-8", errors="replace")
                         return ToolResult.ok(content=text)
                     return ToolResult.ok(content="")
                 finally:
@@ -327,6 +349,7 @@ class SystemOperationsTool(BaseTool):
             return ToolResult.error("Specify the text in the 'value' parameter.")
         try:
             import pyperclip
+
             pyperclip.copy(value)
             return ToolResult.ok("Text copied to clipboard.")
         except ImportError:
@@ -344,6 +367,7 @@ class SystemOperationsTool(BaseTool):
                 from ctypes import cast, POINTER
                 from comtypes import CLSCTX_ALL
                 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
+
                 devices = AudioUtilities.GetSpeakers()
                 interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
                 volume = cast(interface, POINTER(IAudioEndpointVolume))
@@ -367,6 +391,7 @@ class SystemOperationsTool(BaseTool):
                 from ctypes import cast, POINTER
                 from comtypes import CLSCTX_ALL
                 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
+
                 devices = AudioUtilities.GetSpeakers()
                 interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
                 volume = cast(interface, POINTER(IAudioEndpointVolume))
@@ -392,6 +417,7 @@ class SystemOperationsTool(BaseTool):
         if _OS == "windows":
             try:
                 import wmi
+
                 c = wmi.WMI(namespace="wmi")
                 methods = c.WmiMonitorBrightnessMethods()[0]
                 methods.WmiSetBrightness(level, 0)
@@ -417,6 +443,7 @@ class SystemOperationsTool(BaseTool):
         if _OS == "windows":
             try:
                 from win10toast import ToastNotifier
+
                 toaster = ToastNotifier()
                 toaster.show_toast("NeuralNode", message, duration=5, threaded=True)
                 return ToolResult.ok(f"Notification sent: {message}")
@@ -437,6 +464,8 @@ class SystemOperationsTool(BaseTool):
             self._run(["notify-send", "NeuralNode", message])
             return ToolResult.ok(f"Notification sent: {message}")
         elif _OS == "darwin":
-            self._run(["osascript", "-e", f'display notification "{message}" with title "NeuralNode"'])
+            self._run(
+                ["osascript", "-e", f'display notification "{message}" with title "NeuralNode"']
+            )
             return ToolResult.ok(f"Notification sent: {message}")
         return ToolResult.error("Notifications not supported on this platform.")

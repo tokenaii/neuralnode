@@ -14,6 +14,7 @@ import ssl
 @dataclass
 class ModelInfo:
     """Information about a downloadable model."""
+
     id: str
     name: str
     description: str
@@ -26,7 +27,7 @@ class ModelInfo:
 
 class ModelRegistry:
     """Registry of available local models."""
-    
+
     # Built-in registry of recommended models
     DEFAULT_MODELS = {
         "llama-3.2-1b": ModelInfo(
@@ -37,7 +38,7 @@ class ModelRegistry:
             size_mb=800,
             license="Llama 3.2 License",
             quantization="Q4_K_M",
-            tags=["fast", "lightweight", "general"]
+            tags=["fast", "lightweight", "general"],
         ),
         "llama-3.2-3b": ModelInfo(
             id="llama-3.2-3b",
@@ -47,7 +48,7 @@ class ModelRegistry:
             size_mb=2000,
             license="Llama 3.2 License",
             quantization="Q4_K_M",
-            tags=["balanced", "general"]
+            tags=["balanced", "general"],
         ),
         "qwen2.5-3b": ModelInfo(
             id="qwen2.5-3b",
@@ -57,7 +58,7 @@ class ModelRegistry:
             size_mb=2000,
             license="Apache 2.0",
             quantization="Q4_K_M",
-            tags=["multilingual", "balanced"]
+            tags=["multilingual", "balanced"],
         ),
         "phi-4": ModelInfo(
             id="phi-4",
@@ -67,45 +68,44 @@ class ModelRegistry:
             size_mb=8000,
             license="MIT",
             quantization="Q4_K_M",
-            tags=["high-quality", "coding"]
+            tags=["high-quality", "coding"],
         ),
     }
-    
+
     def __init__(self):
         self.models = dict(self.DEFAULT_MODELS)
-    
+
     def list_models(
-        self,
-        tag: Optional[str] = None,
-        max_size_mb: Optional[int] = None
+        self, tag: Optional[str] = None, max_size_mb: Optional[int] = None
     ) -> List[ModelInfo]:
         """List available models with optional filtering."""
         models = list(self.models.values())
-        
+
         if tag:
             models = [m for m in models if tag in m.tags]
-        
+
         if max_size_mb:
             models = [m for m in models if m.size_mb <= max_size_mb]
-        
+
         return models
-    
+
     def get_model(self, model_id: str) -> Optional[ModelInfo]:
         """Get model info by ID."""
         return self.models.get(model_id)
-    
+
     def search(self, query: str) -> List[ModelInfo]:
         """Search models by name or description."""
         query_lower = query.lower()
         return [
-            m for m in self.models.values()
+            m
+            for m in self.models.values()
             if query_lower in m.name.lower() or query_lower in m.description.lower()
         ]
 
 
 class ModelDownloader:
     """Download and manage local models."""
-    
+
     def __init__(self, cache_dir: Optional[str] = None):
         self.cache_dir = Path(cache_dir or os.path.expanduser("~/.neuralnode/models"))
         self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -113,43 +113,45 @@ class ModelDownloader:
         self.ssl_context = ssl.create_default_context()
         self.ssl_context.check_hostname = False
         self.ssl_context.verify_mode = ssl.CERT_NONE
-    
+
     def list_downloaded(self) -> List[Dict[str, Any]]:
         """List models already downloaded."""
         models = []
-        
+
         for file_path in self.cache_dir.glob("*.gguf"):
             stat = file_path.stat()
-            models.append({
-                "path": str(file_path),
-                "name": file_path.stem,
-                "size_mb": round(stat.st_size / (1024 * 1024), 2),
-                "modified": stat.st_mtime
-            })
-        
+            models.append(
+                {
+                    "path": str(file_path),
+                    "name": file_path.stem,
+                    "size_mb": round(stat.st_size / (1024 * 1024), 2),
+                    "modified": stat.st_mtime,
+                }
+            )
+
         return sorted(models, key=lambda x: x["name"])
-    
+
     def _resolve_model_url_and_filename(self, model_id: str) -> tuple[str, str]:
         """Resolve model ID to download URL and filename."""
         # 1. Registry models
         model = self.registry.get_model(model_id)
         if model:
-            filename = model.download_url.split('/')[-1]
+            filename = model.download_url.split("/")[-1]
             return model.download_url, filename
-            
+
         # 2. Direct URLs
         if model_id.startswith(("http://", "https://")):
-            filename = model_id.split('/')[-1].split('?')[0]
+            filename = model_id.split("/")[-1].split("?")[0]
             return model_id, filename
-            
+
         # 3. HuggingFace path: user/repo/file.gguf
-        parts = model_id.split('/')
+        parts = model_id.split("/")
         if len(parts) >= 3 and parts[-1].lower().endswith(".gguf"):
             repo = "/".join(parts[:-1])
             filename = parts[-1]
             url = f"https://huggingface.co/{repo}/resolve/main/{filename}"
             return url, filename
-            
+
         raise ValueError(
             f"Unknown model registry ID, invalid URL, or invalid HuggingFace path format: {model_id}. "
             "Use a registered ID, a direct GGUF URL, or 'username/repo/filename.gguf'."
@@ -162,63 +164,57 @@ class ModelDownloader:
             return expected_path.exists()
         except ValueError:
             return False
-    
+
     def _get_model_path(self, model_id: str) -> Path:
         """Get the expected path for a model."""
         _, filename = self._resolve_model_url_and_filename(model_id)
         return self.cache_dir / filename
-    
-    def download(
-        self,
-        model_id: str,
-        progress_callback: Optional[callable] = None
-    ) -> str:
+
+    def download(self, model_id: str, progress_callback: Optional[callable] = None) -> str:
         """Download a model from the registry, direct URL, or HuggingFace repo.
-        
+
         Returns:
             Path to downloaded model file
         """
         download_url, filename = self._resolve_model_url_and_filename(model_id)
         output_path = self.cache_dir / filename
-        
+
         # Check if already exists
         if output_path.exists():
             return str(output_path)
-        
+
         # Download
         try:
-            headers = {
-                "User-Agent": "NeuralNode-Downloader/1.0"
-            }
-            
+            headers = {"User-Agent": "NeuralNode-Downloader/1.0"}
+
             req = Request(download_url, headers=headers)
-            
+
             with urlopen(req, context=self.ssl_context, timeout=60) as response:
-                total_size = int(response.headers.get('Content-Length', 0))
+                total_size = int(response.headers.get("Content-Length", 0))
                 downloaded = 0
                 chunk_size = 8192
-                
-                with open(output_path, 'wb') as f:
+
+                with open(output_path, "wb") as f:
                     while True:
                         chunk = response.read(chunk_size)
                         if not chunk:
                             break
-                        
+
                         f.write(chunk)
                         downloaded += len(chunk)
-                        
+
                         if progress_callback and total_size:
                             progress = (downloaded / total_size) * 100
                             progress_callback(progress, downloaded, total_size)
-            
+
             return str(output_path)
-            
+
         except URLError as e:
             # Clean up partial download
             if output_path.exists():
                 output_path.unlink()
             raise RuntimeError(f"Download failed: {e}")
-    
+
     def delete(self, model_id: str) -> bool:
         """Delete a downloaded model."""
         path = self._get_model_path(model_id)
@@ -226,7 +222,7 @@ class ModelDownloader:
             path.unlink()
             return True
         return False
-    
+
     def get_path(self, model_id: str) -> Optional[str]:
         """Get the path to a model if it exists."""
         path = self._get_model_path(model_id)
@@ -235,62 +231,63 @@ class ModelDownloader:
 
 class LocalModelManager:
     """High-level manager for local models."""
-    
+
     def __init__(self, cache_dir: Optional[str] = None):
         self.downloader = ModelDownloader(cache_dir)
         self.registry = self.downloader.registry
-    
+
     def list_available(self) -> List[ModelInfo]:
         """List models available for download."""
         return self.registry.list_models()
-    
+
     def list_installed(self) -> List[Dict[str, Any]]:
         """List installed models."""
         return self.downloader.list_downloaded()
-    
+
     def install(self, model_id: str, progress_callback: Optional[callable] = None) -> str:
         """Download and install a model."""
         return self.downloader.download(model_id, progress_callback)
-    
+
     def uninstall(self, model_id: str) -> bool:
         """Remove an installed model."""
         return self.downloader.delete(model_id)
-    
+
     def is_installed(self, model_id: str) -> bool:
         """Check if a model is installed."""
         return self.downloader.is_downloaded(model_id)
-    
+
     def get_model_path(self, model_id: str) -> Optional[str]:
         """Get path to installed model."""
         return self.downloader.get_path(model_id)
-    
+
     def recommend_model(
         self,
         ram_gb: Optional[float] = None,
         vram_gb: Optional[float] = None,
-        priority: str = "balanced"  # speed, quality, balanced
+        priority: str = "balanced",  # speed, quality, balanced
     ) -> Optional[ModelInfo]:
         """Recommend a model based on hardware."""
         if ram_gb is None:
             # Try to detect
             try:
                 import psutil
+
                 ram_gb = psutil.virtual_memory().total / (1024**3)
             except ImportError:
                 ram_gb = 8  # Assume 8GB
-        
+
         # Filter by size
         max_size = min(ram_gb * 0.75 * 1024, 16000)  # Max 75% of RAM or 16GB
-        
+
         candidates = self.registry.list_models(max_size_mb=int(max_size))
-        
+
         if not candidates:
             return None
-        
+
         # Score candidates
         def score_model(m: ModelInfo) -> float:
             s = 0.0
-            
+
             # Size score (smaller is better for speed, larger for quality)
             if priority == "speed":
                 s += (2000 - m.size_mb) / 2000 * 10
@@ -298,15 +295,15 @@ class LocalModelManager:
                 s += m.size_mb / 16000 * 10
             else:  # balanced
                 s += 5 if 1500 < m.size_mb < 4000 else 2
-            
+
             # Prefer certain tags
             if priority == "speed" and "fast" in m.tags:
                 s += 3
             if priority == "quality" and "high-quality" in m.tags:
                 s += 3
-            
+
             return s
-        
+
         return max(candidates, key=score_model)
 
 

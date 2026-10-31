@@ -13,6 +13,7 @@ from ..utils.logger import get_logger
 
 try:
     from twilio.rest import Client as TwilioClient
+
     TWILIO_AVAILABLE = True
 except ImportError:
     TWILIO_AVAILABLE = False
@@ -21,6 +22,7 @@ except ImportError:
 @dataclass
 class WhatsAppSession:
     """User session in WhatsApp."""
+
     phone_number: str
     chat_history: List[Dict[str, Any]] = field(default_factory=list)
     created_at: datetime = field(default_factory=datetime.now)
@@ -63,27 +65,23 @@ class TwilioWhatsAppBot:
     def send_message(self, to_number: str, body: str):
         max_length = 1600
         if len(body) > max_length:
-            chunks = [body[i:i+max_length] for i in range(0, len(body), max_length)]
+            chunks = [body[i : i + max_length] for i in range(0, len(body), max_length)]
             for i, chunk in enumerate(chunks, 1):
                 self.client.messages.create(
                     from_=f"whatsapp:{self.from_number}",
                     body=f"({i}/{len(chunks)}) {chunk}",
-                    to=f"whatsapp:{to_number}"
+                    to=f"whatsapp:{to_number}",
                 )
         else:
             self.client.messages.create(
-                from_=f"whatsapp:{self.from_number}",
-                body=body,
-                to=f"whatsapp:{to_number}"
+                from_=f"whatsapp:{self.from_number}", body=body, to=f"whatsapp:{to_number}"
             )
 
     def _build_context(self, session: WhatsAppSession) -> str:
         if not session.chat_history:
             return ""
         recent = session.chat_history[-10:]
-        return "\n".join(
-            f"{msg['role'].capitalize()}: {msg['content'][:150]}" for msg in recent
-        )
+        return "\n".join(f"{msg['role'].capitalize()}: {msg['content'][:150]}" for msg in recent)
 
     def clear_session(self, phone_number: str):
         if phone_number in self.sessions:
@@ -91,12 +89,11 @@ class TwilioWhatsAppBot:
 
 
 def create_twilio_whatsapp_bot(
-    account_sid: str,
-    auth_token: str,
-    from_number: str,
-    agent: BaseAgent
+    account_sid: str, auth_token: str, from_number: str, agent: BaseAgent
 ) -> TwilioWhatsAppBot:
-    return TwilioWhatsAppBot(account_sid=account_sid, auth_token=auth_token, from_number=from_number, agent=agent)
+    return TwilioWhatsAppBot(
+        account_sid=account_sid, auth_token=auth_token, from_number=from_number, agent=agent
+    )
 
 
 __all__ = ["WhatsAppSession", "TwilioWhatsAppBot", "create_twilio_whatsapp_bot", "TWILIO_AVAILABLE"]

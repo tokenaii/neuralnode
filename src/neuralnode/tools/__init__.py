@@ -12,32 +12,31 @@ FileWriterTool = FileWriteTool
 from ..core import BaseTool, ToolResult, ParameterSpec
 import math
 
+
 class CalculatorTool(BaseTool):
     """Perform mathematical calculations."""
-    
+
     name = "calculator"
     description = "Perform mathematical calculations and evaluate expressions."
     parameters = {
         "expression": ParameterSpec(
             type="string",
             description="The math expression to evaluate (e.g., '2 + 2', 'math.sqrt(16)', 'math.pi * 5^2')",
-            required=True
+            required=True,
         )
     }
-    
+
     def execute(self, expression: str) -> ToolResult:
         try:
             # Basic sanitization
-            expr = expression.replace('^', '**')
+            expr = expression.replace("^", "**")
             # Safe evaluation with math module
-            allowed_names = {
-                k: getattr(math, k) for k in dir(math) if not k.startswith("_")
-            }
+            allowed_names = {k: getattr(math, k) for k in dir(math) if not k.startswith("_")}
             allowed_names["abs"] = abs
             allowed_names["round"] = round
             allowed_names["min"] = min
             allowed_names["max"] = max
-            
+
             result = eval(expr, {"__builtins__": {}}, allowed_names)
             return ToolResult.ok(str(result), value=result)
         except Exception as e:

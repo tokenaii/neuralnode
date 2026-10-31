@@ -124,7 +124,9 @@ class ReplicaTTS:
             except ImportError:
                 EDGE_TTS_AVAILABLE = False
         if not EDGE_TTS_AVAILABLE:
-            raise ImportError("edge_tts is required for Replica TTS. Install with: pip install edge-tts")
+            raise ImportError(
+                "edge_tts is required for Replica TTS. Install with: pip install edge-tts"
+            )
 
         voice = resolve_voice(voice_id)
 
@@ -147,10 +149,7 @@ class ReplicaTTS:
         return output_path
 
     def speak(self, text: str, blocking: bool = True, output_file: Optional[str] = None) -> str:
-        raise NotImplementedError(
-            "Replica Preview 0.6B (tokenaii/Replica-Preview-0.6B) is coming soon. "
-            "edge_tts dependency has been removed."
-        )
+        """Generate speech through the configured Edge TTS voice."""
         if not output_file:
             output_file = f"replica_output_{abs(hash((self.voice_id, text))) % 100000}.mp3"
 

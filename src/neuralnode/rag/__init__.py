@@ -32,13 +32,15 @@ from abc import ABC, abstractmethod
 from ..core import BaseProvider, Message, ensure_llm_response, ensure_streaming_chunks
 from ..utils.logger import get_logger, log_execution
 
-
+logger = get_logger()
 
 # ── Data classes ───────────────────────────────────────────────────────────────
+
 
 @dataclass
 class Document:
     """A raw document before splitting."""
+
     content: str
     source: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -67,6 +69,7 @@ class Document:
 @dataclass
 class Chunk:
     """A chunk of a document after splitting."""
+
     content: str
     doc_id: str = "unknown"
     chunk_index: int = 0
@@ -82,6 +85,7 @@ class Chunk:
 
 
 # ── Text Splitters ─────────────────────────────────────────────────────────────
+
 
 class TextSplitter:
     """Split text into overlapping chunks.
@@ -150,18 +154,20 @@ class TextSplitter:
         for doc in documents:
             texts = self.split_text(doc.content)
             for i, text in enumerate(texts):
-                all_chunks.append(Chunk(
-                    content=text,
-                    doc_id=doc.doc_id,  # type: ignore
-                    chunk_index=i,
-                    metadata={**doc.metadata, "chunk_index": i, "total_chunks": len(texts)},
-                ))
+                all_chunks.append(
+                    Chunk(
+                        content=text,
+                        doc_id=doc.doc_id,  # type: ignore
+                        chunk_index=i,
+                        metadata={**doc.metadata, "chunk_index": i, "total_chunks": len(texts)},
+                    )
+                )
         self.logger.info(f"Split {len(documents)} documents into {len(all_chunks)} chunks")
         return all_chunks
 
     def _get_overlap(self, chunks: List[str]) -> str:
         text = self.separator.join(chunks)
-        return text[-self.chunk_overlap:] if len(text) > self.chunk_overlap else text
+        return text[-self.chunk_overlap :] if len(text) > self.chunk_overlap else text
 
 
 # Aliases for compatibility
@@ -214,6 +220,7 @@ class RecursiveCharacterTextSplitter(TextSplitter):
 
 class TokenTextSplitter(TextSplitter):
     """Split by approximate token count (1 token ≈ 4 chars)."""
+
     def __init__(self, max_tokens: int = 512, **kwargs):
         super().__init__(chunk_size=max_tokens * 4, **kwargs)
 
@@ -227,6 +234,7 @@ class MarkdownHeaderTextSplitter:
 
 
 # ── Document Loaders ───────────────────────────────────────────────────────────
+
 
 class BaseDocumentLoader(ABC):
     @abstractmethod
@@ -242,9 +250,23 @@ class TextLoader(BaseDocumentLoader):
     """Load plain text / code / markdown / JSON / CSV files."""
 
     EXTENSIONS = {
-        ".txt", ".md", ".rst", ".log", ".py", ".js", ".ts", ".html",
-        ".xml", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".sh",
-        ".json", ".csv",
+        ".txt",
+        ".md",
+        ".rst",
+        ".log",
+        ".py",
+        ".js",
+        ".ts",
+        ".html",
+        ".xml",
+        ".yaml",
+        ".yml",
+        ".toml",
+        ".ini",
+        ".cfg",
+        ".sh",
+        ".json",
+        ".csv",
     }
 
     def load(self, source: Union[str, Path]) -> List[Document]:
@@ -252,11 +274,13 @@ class TextLoader(BaseDocumentLoader):
         if not path.exists():
             return []
         content = path.read_text(encoding="utf-8", errors="ignore")
-        return [Document(
-            content=content,
-            source=str(path),
-            metadata={"source": str(path), "filename": path.name, "type": "text"},
-        )]
+        return [
+            Document(
+                content=content,
+                source=str(path),
+                metadata={"source": str(path), "filename": path.name, "type": "text"},
+            )
+        ]
 
     def supports(self, source: Union[str, Path]) -> bool:
         return Path(source).suffix.lower() in self.EXTENSIONS
@@ -278,10 +302,17 @@ class PDFLoader(BaseDocumentLoader):
             text = page.extract_text() or ""
             if text.strip():
                 pages.append(f"--- Page {i + 1} ---\n{text}")
-        return [Document(
-            content="\n\n".join(pages),
-            metadata={"source": str(path), "filename": path.name, "type": "pdf", "pages": len(reader.pages)},
-        )]
+        return [
+            Document(
+                content="\n\n".join(pages),
+                metadata={
+                    "source": str(path),
+                    "filename": path.name,
+                    "type": "pdf",
+                    "pages": len(reader.pages),
+                },
+            )
+        ]
 
     def supports(self, source: Union[str, Path]) -> bool:
         return Path(source).suffix.lower() == ".pdf"
@@ -297,10 +328,12 @@ class DocxLoader(BaseDocumentLoader):
             raise ImportError("Install python-docx: pip install python-docx")
         doc = docx.Document(str(source))
         content = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
-        return [Document(
-            content=content,
-            metadata={"source": str(source), "filename": Path(source).name, "type": "docx"},
-        )]
+        return [
+            Document(
+                content=content,
+                metadata={"source": str(source), "filename": Path(source).name, "type": "docx"},
+            )
+        ]
 
     def supports(self, source: Union[str, Path]) -> bool:
         return Path(source).suffix.lower() in {".docx", ".doc"}
@@ -314,10 +347,9 @@ class WebLoader(BaseDocumentLoader):
 
     def load(self, source: Union[str, Path]) -> List[Document]:
         import urllib.request, ssl
+
         url = str(source)
         ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
         headers = {"User-Agent": "Mozilla/5.0 (NeuralNode RAG)"}
         req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, context=ctx, timeout=30) as r:
@@ -341,20 +373,23 @@ class CSVLoader(BaseDocumentLoader):
 
     def load(self, source: Union[str, Path]) -> List[Document]:
         import csv
+
         path = Path(source)
         if not path.exists():
             return []
         documents = []
         try:
-            with open(path, 'r', encoding='utf-8', errors='ignore', newline='') as f:
+            with open(path, "r", encoding="utf-8", errors="ignore", newline="") as f:
                 reader = csv.DictReader(f)
                 for i, row in enumerate(reader):
                     content = "\n".join([f"{k}: {v}" for k, v in row.items()])
-                    documents.append(Document(
-                        content=content,
-                        source=str(path),
-                        metadata={"source": str(path), "row": i, "type": "csv", **row}
-                    ))
+                    documents.append(
+                        Document(
+                            content=content,
+                            source=str(path),
+                            metadata={"source": str(path), "row": i, "type": "csv", **row},
+                        )
+                    )
             return documents
         except Exception as e:
             logger.error(f"Failed to load CSV {path}: {e}")
@@ -377,18 +412,24 @@ class JSONLoader(BaseDocumentLoader):
             documents = []
             if isinstance(data, list):
                 for i, item in enumerate(data):
-                    item_str = json.dumps(item, indent=2) if isinstance(item, (dict, list)) else str(item)
-                    documents.append(Document(
-                        content=item_str,
-                        source=str(path),
-                        metadata={"source": str(path), "index": i, "type": "json"}
-                    ))
+                    item_str = (
+                        json.dumps(item, indent=2) if isinstance(item, (dict, list)) else str(item)
+                    )
+                    documents.append(
+                        Document(
+                            content=item_str,
+                            source=str(path),
+                            metadata={"source": str(path), "index": i, "type": "json"},
+                        )
+                    )
             else:
-                documents.append(Document(
-                    content=json.dumps(data, indent=2),
-                    source=str(path),
-                    metadata={"source": str(path), "type": "json"}
-                ))
+                documents.append(
+                    Document(
+                        content=json.dumps(data, indent=2),
+                        source=str(path),
+                        metadata={"source": str(path), "type": "json"},
+                    )
+                )
             return documents
         except Exception as e:
             logger.error(f"Failed to load JSON {path}: {e}")
@@ -411,7 +452,12 @@ class DocumentLoader:
 
     def __init__(self):
         self.loaders: List[BaseDocumentLoader] = [
-            TextLoader(), PDFLoader(), DocxLoader(), WebLoader(), CSVLoader(), JSONLoader()
+            CSVLoader(),
+            JSONLoader(),
+            PDFLoader(),
+            DocxLoader(),
+            WebLoader(),
+            TextLoader(),
         ]
         self.logger = get_logger()
 
@@ -443,8 +489,6 @@ class DocumentLoader:
 
 
 # Aliases
-JSONLoader = TextLoader
-CSVLoader = TextLoader
 DirectoryLoader = DocumentLoader
 
 
@@ -470,6 +514,7 @@ def split_documents(docs: List[Document], **splitter_kwargs) -> List[Chunk]:
 
 # ── Vector Stores ──────────────────────────────────────────────────────────────
 
+
 class BaseVectorStore(ABC):
     @abstractmethod
     def add(self, chunks: List[Chunk]) -> None: ...
@@ -494,9 +539,7 @@ class InMemoryVectorStore(BaseVectorStore):
 
     def search(self, query_embedding: List[float], k: int = 5) -> List[Chunk]:
         scored = [
-            (ch, self._cosine(query_embedding, ch.embedding))
-            for ch in self.chunks
-            if ch.embedding
+            (ch, self._cosine(query_embedding, ch.embedding)) for ch in self.chunks if ch.embedding
         ]
         scored.sort(key=lambda x: x[1], reverse=True)
         return [ch for ch, _ in scored[:k]]
@@ -553,12 +596,14 @@ class ChromaDBStore(BaseVectorStore):
         chunks: List[Chunk] = []
         for i, doc in enumerate(results["documents"][0]):
             meta = (results["metadatas"] or [[]])[0][i] if results.get("metadatas") else {}
-            chunks.append(Chunk(
-                content=doc,
-                doc_id=meta.get("doc_id", "unknown"),
-                chunk_index=meta.get("chunk_index", 0),
-                metadata=meta,
-            ))
+            chunks.append(
+                Chunk(
+                    content=doc,
+                    doc_id=meta.get("doc_id", "unknown"),
+                    chunk_index=meta.get("chunk_index", 0),
+                    metadata=meta,
+                )
+            )
         return chunks
 
     def clear(self) -> None:
@@ -591,6 +636,7 @@ class FAISSVectorStore(BaseVectorStore):
 
     def add(self, chunks: List[Chunk]) -> None:
         import numpy as np
+
         emb_chunks = [ch for ch in chunks if ch.embedding]
         if not emb_chunks:
             return
@@ -603,6 +649,7 @@ class FAISSVectorStore(BaseVectorStore):
 
     def search(self, query_embedding: List[float], k: int = 5) -> List[Chunk]:
         import numpy as np
+
         if self._index is None or not self.chunks:
             return []
         vec = np.array([query_embedding], dtype="float32")
@@ -618,6 +665,7 @@ class FAISSVectorStore(BaseVectorStore):
 
 
 # ── RAG Pipeline ───────────────────────────────────────────────────────────────
+
 
 class RAG:
     """Retrieval-Augmented Generation system.
@@ -666,10 +714,14 @@ class RAG:
             else:
                 docs.extend(self.document_loader.load(src))
 
-        chunks = self.text_splitter.split_documents(docs) if split else [
-            Chunk(content=d.content, doc_id=d.doc_id, chunk_index=0, metadata=d.metadata)  # type: ignore
-            for d in docs
-        ]
+        chunks = (
+            self.text_splitter.split_documents(docs)
+            if split
+            else [
+                Chunk(content=d.content, doc_id=d.doc_id, chunk_index=0, metadata=d.metadata)  # type: ignore
+                for d in docs
+            ]
+        )
         self._embed_and_store(chunks)
         self.logger.info(f"Added {len(docs)} docs → {len(chunks)} chunks")
 
@@ -687,9 +739,13 @@ class RAG:
             split: Whether to split into chunks.
         """
         doc = Document(content=text, metadata=metadata or {"source": "inline"})
-        chunks = self.text_splitter.split_documents([doc]) if split else [
-            Chunk(content=text, doc_id=doc.doc_id, chunk_index=0, metadata=doc.metadata)  # type: ignore
-        ]
+        chunks = (
+            self.text_splitter.split_documents([doc])
+            if split
+            else [
+                Chunk(content=text, doc_id=doc.doc_id, chunk_index=0, metadata=doc.metadata)  # type: ignore
+            ]
+        )
         self._embed_and_store(chunks)
 
     def search(self, query: str, k: Optional[int] = None) -> List[Chunk]:
@@ -732,7 +788,10 @@ class RAG:
             return iter([no_ctx]) if stream else no_ctx
 
         context = self._build_context(chunks)
-        system = system_prompt or "You are a helpful assistant. Answer based on the provided context only."
+        system = (
+            system_prompt
+            or "You are a helpful assistant. Answer based on the provided context only."
+        )
         prompt = f"Context:\n{context}\n\nQuestion: {question}\n\nAnswer:"
 
         messages = [Message.system(system), Message.user(prompt)]
@@ -740,9 +799,9 @@ class RAG:
 
         if stream:
             return (chunk.content for chunk in ensure_streaming_chunks(response))  # type: ignore
-        
+
         answer = ensure_llm_response(response).content
-        
+
         if include_sources:
             sources = [
                 {
@@ -754,7 +813,7 @@ class RAG:
                 for ch in chunks
             ]
             return {"answer": answer, "sources": sources}
-        
+
         return answer
 
     def count(self) -> int:
@@ -772,7 +831,9 @@ class RAG:
         try:
             return self.embedding_provider.embed([query])[0]
         except Exception as exc:
-            self.logger.warning("Query embedding provider failed (%s). Falling back to lexical embeddings.", exc)
+            self.logger.warning(
+                "Query embedding provider failed (%s). Falling back to lexical embeddings.", exc
+            )
             self.embedding_provider = _LexicalEmbeddingProvider()
             return self.embedding_provider.embed([query])[0]
 
@@ -878,7 +939,10 @@ class _LexicalEmbeddingProvider:
         for token, weight in counts.items():
             # MD5 is used only as a deterministic bucket hash, never for
             # authentication or integrity.  Mark that intent explicitly.
-            index = int(hashlib.md5(token.encode("utf-8"), usedforsecurity=False).hexdigest(), 16) % self.dimensions
+            index = (
+                int(hashlib.md5(token.encode("utf-8"), usedforsecurity=False).hexdigest(), 16)
+                % self.dimensions
+            )
             vector[index] += float(weight)
 
         norm = math.sqrt(sum(value * value for value in vector))
@@ -891,18 +955,34 @@ class _LexicalEmbeddingProvider:
 
 __all__ = [
     # Data
-    "Document", "Chunk",
+    "Document",
+    "Chunk",
     # Splitters
-    "TextSplitter", "BaseTextSplitter", "CharacterTextSplitter",
-    "RecursiveCharacterTextSplitter", "TokenTextSplitter",
+    "TextSplitter",
+    "BaseTextSplitter",
+    "CharacterTextSplitter",
+    "RecursiveCharacterTextSplitter",
+    "TokenTextSplitter",
     "MarkdownHeaderTextSplitter",
     # Loaders
-    "BaseDocumentLoader", "TextLoader", "PDFLoader", "DocxLoader",
-    "WebLoader", "DocumentLoader",
-    "JSONLoader", "CSVLoader", "DirectoryLoader",
-    "load_documents", "split_documents",
+    "BaseDocumentLoader",
+    "TextLoader",
+    "PDFLoader",
+    "DocxLoader",
+    "WebLoader",
+    "DocumentLoader",
+    "JSONLoader",
+    "CSVLoader",
+    "DirectoryLoader",
+    "load_documents",
+    "split_documents",
     # Vector Stores
-    "BaseVectorStore", "InMemoryVectorStore", "ChromaDBStore", "FAISSVectorStore",
+    "BaseVectorStore",
+    "InMemoryVectorStore",
+    "ChromaDBStore",
+    "FAISSVectorStore",
     # RAG
-    "RAG", "RAGPipeline", "create_rag",
+    "RAG",
+    "RAGPipeline",
+    "create_rag",
 ]

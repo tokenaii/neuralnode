@@ -169,7 +169,9 @@ class TelegramBot:
             print(f"Error saving sessions: {exc}")
 
     def _get_download_dir(self) -> Path:
-        target = Path(self.config.download_dir or (Path(tempfile.gettempdir()) / "neuralnode_telegram"))
+        target = Path(
+            self.config.download_dir or (Path(tempfile.gettempdir()) / "neuralnode_telegram")
+        )
         target.mkdir(parents=True, exist_ok=True)
         return target
 
@@ -544,7 +546,9 @@ class TelegramBot:
         if self.config.enable_voice:
             self.application.add_handler(MessageHandler(filters.VOICE, self._handle_voice_message))
         if self.config.enable_documents:
-            self.application.add_handler(MessageHandler(filters.Document.ALL, self._handle_document))
+            self.application.add_handler(
+                MessageHandler(filters.Document.ALL, self._handle_document)
+            )
         self.application.add_error_handler(self._handle_error)
 
     async def _handle_error(self, update: object, context: ContextTypes.DEFAULT_TYPE):
@@ -557,7 +561,9 @@ class TelegramBot:
             print("Bot is already running.")
             return
         if self.config.validate_token_on_start and not self.validate_token():
-            raise ValueError("Invalid Telegram bot token. Verify your BotFather token and network connectivity.")
+            raise ValueError(
+                "Invalid Telegram bot token. Verify your BotFather token and network connectivity."
+            )
 
         self._configure_runtime_logging()
         self.application = Application.builder().token(self.token).build()
@@ -572,7 +578,9 @@ class TelegramBot:
 
         async def run_bot():
             if self.config.validate_token_on_start and not self.validate_token():
-                raise ValueError("Invalid Telegram bot token. Verify your BotFather token and network connectivity.")
+                raise ValueError(
+                    "Invalid Telegram bot token. Verify your BotFather token and network connectivity."
+                )
             self._configure_runtime_logging()
             self.application = Application.builder().token(self.token).build()
             self._setup_handlers()

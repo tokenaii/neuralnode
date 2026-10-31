@@ -22,7 +22,6 @@ logger = logging.getLogger(__name__)
 from .base import *
 from .agents import *
 
-
 _THINKING_SYSTEM_SUFFIX = """
 
 ## Reasoning Instructions
@@ -42,8 +41,9 @@ Conclusion: ...
 def _strip_thinking(text: str) -> str:
     """Remove <think>...</think> blocks from model output."""
     import re
-    text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
-    text = re.sub(r'<thinking>.*?</thinking>', '', text, flags=re.DOTALL)
+
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+    text = re.sub(r"<thinking>.*?</thinking>", "", text, flags=re.DOTALL)
     return text.strip()
 
 
@@ -83,13 +83,13 @@ class ThinkingAgent:
 
     @property
     def tools(self):
-        if hasattr(self.agent, 'tool_list'):
+        if hasattr(self.agent, "tool_list"):
             return self.agent.tool_list
         return list(self.agent.tools.values())
 
     def _inject(self, suffix: str) -> None:
-        current = getattr(self.agent, 'system_prompt', '') or ''
-        if 'Reasoning Instructions' not in current:
+        current = getattr(self.agent, "system_prompt", "") or ""
+        if "Reasoning Instructions" not in current:
             self.agent.system_prompt = current + suffix
 
     def run(self, task: str, **kwargs) -> Any:
@@ -130,7 +130,6 @@ def create_thinking_agent(
     """
     base = ReActAgent(llm, tools or [], system_prompt)
     return ThinkingAgent(base, strip_thinking=strip_thinking)
-
 
 
 __all__ = [

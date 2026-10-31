@@ -31,6 +31,7 @@ from pathlib import Path
 
 from ..core import Memory, Message, MessageRole, ensure_llm_response
 
+
 class SummaryMemory(Memory):
     """Memory that summarises old messages with the LLM when the context fills up.
 
@@ -115,9 +116,7 @@ class SummaryMemory(Memory):
         if not to_summarise:
             return
 
-        conv_text = "\n".join(
-            f"{m.role.value.upper()}: {m.content}" for m in to_summarise
-        )
+        conv_text = "\n".join(f"{m.role.value.upper()}: {m.content}" for m in to_summarise)
         prompt = f"{self.summary_prompt}\n\nConversation:\n{conv_text}"
 
         try:

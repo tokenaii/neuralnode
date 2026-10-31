@@ -122,6 +122,7 @@ def _refresh_hf_hub_imports() -> None:
     except ImportError:
         HF_HUB_AVAILABLE = False
 
+
 from .base import BaseLLMProvider, ProviderCapabilities, ProviderType
 from ..core import LLMResponse, Message, StreamingChunk, ToolCall
 from ..turboquant import TURBOQUANT_AVAILABLE, TurboQuant, TurboQuantConfig
@@ -608,7 +609,11 @@ class HorusProvider(BaseLLMProvider):
         ):
             ensure_feature_dependencies("horus_transformers", auto_install=True)
             _refresh_transformers_imports()
-        if not is_lens_model and not self._is_gguf_model_id(model_id) and not TRANSFORMERS_AVAILABLE:
+        if (
+            not is_lens_model
+            and not self._is_gguf_model_id(model_id)
+            and not TRANSFORMERS_AVAILABLE
+        ):
             raise ImportError(
                 "transformers and torch are required for Horus transformers models. "
                 "Install with: pip install transformers torch"
@@ -740,7 +745,11 @@ class HorusProvider(BaseLLMProvider):
         if torch is None:
             return None
         if torch_dtype is None:
-            if self.device == "cuda" and torch.cuda.is_available() and torch.cuda.is_bf16_supported():
+            if (
+                self.device == "cuda"
+                and torch.cuda.is_available()
+                and torch.cuda.is_bf16_supported()
+            ):
                 return torch.bfloat16
             return torch.float16 if self.device == "cuda" else torch.float32
         if isinstance(torch_dtype, str):
@@ -814,13 +823,19 @@ class HorusProvider(BaseLLMProvider):
         base.setdefault("size", "Unknown")
         base.setdefault(
             "type",
-            "text-to-image"
-            if self._is_text_to_image_model_id(self.model_id)
-            else ("gguf" if self._is_gguf_model_id(self.model_id) else "safetensors"),
+            (
+                "text-to-image"
+                if self._is_text_to_image_model_id(self.model_id)
+                else ("gguf" if self._is_gguf_model_id(self.model_id) else "safetensors")
+            ),
         )
         if base.get("type") == "gguf" and "quantization" not in base:
             _, filename = self._split_repo_and_filename(self.model_id)
-            quant_match = re.search(r"-(Q\d(?:_[A-Z0-9]+)?|TQ\d(?:_[A-Z0-9]+)?|F16|BF16)\.gguf$", filename, flags=re.IGNORECASE)
+            quant_match = re.search(
+                r"-(Q\d(?:_[A-Z0-9]+)?|TQ\d(?:_[A-Z0-9]+)?|F16|BF16)\.gguf$",
+                filename,
+                flags=re.IGNORECASE,
+            )
             if quant_match:
                 base["quantization"] = quant_match.group(1).upper()
         base.setdefault("context_window", HORUS_CONTEXT_WINDOW)
@@ -899,7 +914,7 @@ class HorusProvider(BaseLLMProvider):
 
         for _ in range(kv_count):
             key_len, offset = cls._read_gguf_u64(header, offset)
-            key = bytes(header[offset:offset + key_len]).decode("utf-8")
+            key = bytes(header[offset : offset + key_len]).decode("utf-8")
             offset += key_len
             value_type, offset = cls._read_gguf_u32(header, offset)
             value_offset = offset
@@ -907,12 +922,16 @@ class HorusProvider(BaseLLMProvider):
                 metadata[key] = struct.unpack_from("<I", header, value_offset)[0]
             elif value_type == 8:
                 length, string_offset = cls._read_gguf_u64(header, value_offset)
-                metadata[key] = bytes(header[string_offset:string_offset + length]).decode("utf-8", errors="replace")
+                metadata[key] = bytes(header[string_offset : string_offset + length]).decode(
+                    "utf-8", errors="replace"
+                )
             offset = cls._skip_gguf_value(header, offset, value_type)
         return metadata
 
     @classmethod
-    def _patch_gguf_u32_metadata(cls, source_path: str, target_path: str, patches: Dict[str, int]) -> bool:
+    def _patch_gguf_u32_metadata(
+        cls, source_path: str, target_path: str, patches: Dict[str, int]
+    ) -> bool:
         shutil.copyfile(source_path, target_path)
         with open(target_path, "r+b") as f:
             data = bytearray(f.read(32 * 1024 * 1024))
@@ -927,7 +946,7 @@ class HorusProvider(BaseLLMProvider):
 
             for _ in range(kv_count):
                 key_len, offset = cls._read_gguf_u64(data, offset)
-                key = bytes(data[offset:offset + key_len]).decode("utf-8")
+                key = bytes(data[offset : offset + key_len]).decode("utf-8")
                 offset += key_len
                 value_type, offset = cls._read_gguf_u32(data, offset)
                 value_offset = offset
@@ -961,7 +980,9 @@ class HorusProvider(BaseLLMProvider):
 
         source = Path(model_path)
         fingerprint = hashlib.sha256(
-            f"{source.resolve()}:{source.stat().st_size}:{source.stat().st_mtime_ns}".encode("utf-8")
+            f"{source.resolve()}:{source.stat().st_size}:{source.stat().st_mtime_ns}".encode(
+                "utf-8"
+            )
         ).hexdigest()[:16]
         patch_dir = Path(
             self.patched_gguf_dir
@@ -969,7 +990,9 @@ class HorusProvider(BaseLLMProvider):
             or source.parent / ".neuralnode_patched"
         )
         patch_dir.mkdir(parents=True, exist_ok=True)
-        patched_path = patch_dir / f"{source.stem}.neuralnode-qwen35-block32-{fingerprint}{source.suffix}"
+        patched_path = (
+            patch_dir / f"{source.stem}.neuralnode-qwen35-block32-{fingerprint}{source.suffix}"
+        )
 
         if patched_path.exists() and patched_path.stat().st_size == source.stat().st_size:
             return str(patched_path)
@@ -1021,7 +1044,7 @@ class HorusProvider(BaseLLMProvider):
             raise ImportError(
                 "diffusers, transformers, torch, accelerate, and pillow are required for Horus Lens.\n"
                 "Install with:\n"
-                "  pip install \"neuralnode[horus]\"\n"
+                '  pip install "neuralnode[horus]"\n'
                 "or:\n"
                 "  pip install diffusers transformers torch accelerate pillow"
             )
@@ -1067,6 +1090,7 @@ class HorusProvider(BaseLLMProvider):
                             horus_vae,
                         ):
                             from diffusers import DiffusionPipeline
+
                             DiffusionPipeline.__init__(self)
                             self.register_modules(
                                 horus_scheduler=horus_scheduler,
@@ -1084,17 +1108,21 @@ class HorusProvider(BaseLLMProvider):
                             # Initialize VAE scale factor and image processor
                             vae_scale = 8
                             if hasattr(self, "vae") and self.vae is not None:
-                                if hasattr(self.vae, "config") and getattr(self.vae.config, "block_out_channels", None) is not None:
+                                if (
+                                    hasattr(self.vae, "config")
+                                    and getattr(self.vae.config, "block_out_channels", None)
+                                    is not None
+                                ):
                                     vae_scale = 2 ** (len(self.vae.config.block_out_channels) - 1)
                             self.vae_scale_factor = vae_scale
-                            
+
                             from diffusers.image_processor import VaeImageProcessor
-                            self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor * 2)
-                    
-                    self.model = PatchedZImagePipeline.from_pretrained(
-                        repo_id,
-                        **pipeline_kwargs
-                    )
+
+                            self.image_processor = VaeImageProcessor(
+                                vae_scale_factor=self.vae_scale_factor * 2
+                            )
+
+                    self.model = PatchedZImagePipeline.from_pretrained(repo_id, **pipeline_kwargs)
                 except Exception:
                     # Fallback to default load if patch fails
                     self.model = DiffusionPipeline.from_pretrained(repo_id, **pipeline_kwargs)
@@ -1118,7 +1146,7 @@ class HorusProvider(BaseLLMProvider):
             raise ImportError(
                 "diffusers, transformers, torch, accelerate, and pillow are required for Horus Lens GGUF.\n"
                 "Install with:\n"
-                "  pip install \"neuralnode[horus]\"\n"
+                '  pip install "neuralnode[horus]"\n'
                 "or:\n"
                 "  pip install diffusers transformers torch accelerate pillow gguf"
             )
@@ -1133,6 +1161,7 @@ class HorusProvider(BaseLLMProvider):
             if self.auto_install_deps:
                 ensure_feature_dependencies("horus_gguf", auto_install=True)
                 import importlib
+
                 importlib.invalidate_caches()
                 try:
                     import gguf
@@ -1155,6 +1184,7 @@ class HorusProvider(BaseLLMProvider):
             import sys
             import importlib.metadata
             from packaging.version import Version
+
             try:
                 raw_version = importlib.metadata.version("gguf")
                 # Validate the version string before injecting it.
@@ -1167,6 +1197,7 @@ class HorusProvider(BaseLLMProvider):
                 sys.modules["diffusers.utils.import_utils"]._gguf_available = True
                 sys.modules["diffusers.utils.import_utils"]._gguf_version = version
             import diffusers.utils.import_utils as diffusers_import_utils
+
             diffusers_import_utils._gguf_available = True
             diffusers_import_utils._gguf_version = version
         except Exception:
@@ -1204,9 +1235,13 @@ class HorusProvider(BaseLLMProvider):
             from diffusers import ZImageTransformer2DModel
         except ImportError:
             try:
-                from diffusers.models.transformers.transformer_z_image import ZImageTransformer2DModel
+                from diffusers.models.transformers.transformer_z_image import (
+                    ZImageTransformer2DModel,
+                )
             except ImportError:
-                raise ImportError("ZImageTransformer2DModel is not available in the installed diffusers version.")
+                raise ImportError(
+                    "ZImageTransformer2DModel is not available in the installed diffusers version."
+                )
 
         try:
             from diffusers import GGUFQuantizationConfig
@@ -1216,21 +1251,24 @@ class HorusProvider(BaseLLMProvider):
             except ImportError:
                 GGUFQuantizationConfig = None
 
-        compute_dtype = self._resolve_t2i_dtype() if self._user_specified_dtype is None else self.torch_dtype
+        compute_dtype = (
+            self._resolve_t2i_dtype() if self._user_specified_dtype is None else self.torch_dtype
+        )
         if compute_dtype is None:
             compute_dtype = torch.float32
-        
+
         transformer_kwargs = {
             "torch_dtype": compute_dtype,
         }
         if GGUFQuantizationConfig is not None:
-            transformer_kwargs["quantization_config"] = GGUFQuantizationConfig(compute_dtype=compute_dtype)
+            transformer_kwargs["quantization_config"] = GGUFQuantizationConfig(
+                compute_dtype=compute_dtype
+            )
 
         with self._quiet_native_output():
             try:
                 transformer = ZImageTransformer2DModel.from_single_file(
-                    model_path,
-                    **transformer_kwargs
+                    model_path, **transformer_kwargs
                 )
             except Exception as exc:
                 # Try without quantization_config first (handles shape mismatch
@@ -1239,8 +1277,7 @@ class HorusProvider(BaseLLMProvider):
                 plain_kwargs = {"torch_dtype": compute_dtype}
                 try:
                     transformer = ZImageTransformer2DModel.from_single_file(
-                        model_path,
-                        **plain_kwargs
+                        model_path, **plain_kwargs
                     )
                 except Exception:
                     # Last resort: allow size mismatch so at least something loads
@@ -1249,7 +1286,7 @@ class HorusProvider(BaseLLMProvider):
                             model_path,
                             ignore_mismatched_sizes=True,
                             low_cpu_mem_usage=False,
-                            **plain_kwargs
+                            **plain_kwargs,
                         )
                         logger.warning(
                             "Loaded GGUF transformer with ignored size mismatches. "
@@ -1275,7 +1312,9 @@ class HorusProvider(BaseLLMProvider):
             pipeline_kwargs["revision"] = self.revision
         if self.variant:
             pipeline_kwargs["variant"] = self.variant
-        t2i_dtype = self._resolve_t2i_dtype() if self._user_specified_dtype is None else self.torch_dtype
+        t2i_dtype = (
+            self._resolve_t2i_dtype() if self._user_specified_dtype is None else self.torch_dtype
+        )
         if t2i_dtype is not None:
             pipeline_kwargs["torch_dtype"] = t2i_dtype
 
@@ -1295,6 +1334,7 @@ class HorusProvider(BaseLLMProvider):
                     horus_vae,
                 ):
                     from diffusers import DiffusionPipeline
+
                     DiffusionPipeline.__init__(self)
                     self.register_modules(
                         horus_scheduler=horus_scheduler,
@@ -1312,18 +1352,21 @@ class HorusProvider(BaseLLMProvider):
                     # Initialize VAE scale factor and image processor
                     vae_scale = 8
                     if hasattr(self, "vae") and self.vae is not None:
-                        if hasattr(self.vae, "config") and getattr(self.vae.config, "block_out_channels", None) is not None:
+                        if (
+                            hasattr(self.vae, "config")
+                            and getattr(self.vae.config, "block_out_channels", None) is not None
+                        ):
                             vae_scale = 2 ** (len(self.vae.config.block_out_channels) - 1)
                     self.vae_scale_factor = vae_scale
-                    
+
                     from diffusers.image_processor import VaeImageProcessor
-                    self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor * 2)
-            
+
+                    self.image_processor = VaeImageProcessor(
+                        vae_scale_factor=self.vae_scale_factor * 2
+                    )
+
             with self._quiet_native_output():
-                self.model = PatchedZImagePipeline.from_pretrained(
-                    base_repo_id,
-                    **pipeline_kwargs
-                )
+                self.model = PatchedZImagePipeline.from_pretrained(base_repo_id, **pipeline_kwargs)
         except Exception:
             pipeline_kwargs["transformer"] = transformer
             with self._quiet_native_output():
@@ -1370,7 +1413,7 @@ class HorusProvider(BaseLLMProvider):
             raise ImportError(
                 "llama-cpp-python is required for GGUF Horus models.\n"
                 "Please preinstall it once before using Horus GGUF to avoid long runtime builds:\n"
-                "  pip install \"neuralnode[horus]\"\n"
+                '  pip install "neuralnode[horus]"\n'
                 "or:\n"
                 "  pip install llama-cpp-python\n"
                 "Tip: runtime auto-install is enabled by default for Horus (auto_install_deps=True)."
@@ -1384,7 +1427,7 @@ class HorusProvider(BaseLLMProvider):
                 "Install with:\n"
                 "  pip install huggingface_hub\n"
                 "or:\n"
-                "  pip install \"neuralnode[horus]\""
+                '  pip install "neuralnode[horus]"'
             )
         if repo_id and HF_HUB_AVAILABLE:
             prev_disable_progress = os.environ.get("HF_HUB_DISABLE_PROGRESS_BARS")
@@ -1472,7 +1515,9 @@ class HorusProvider(BaseLLMProvider):
                 value_bits = self.turboquant.bits
         elif isinstance(self.turboquant, dict):
             key_bits = int(self.turboquant.get("key_bits", self.turboquant.get("bits", key_bits)))
-            value_bits = int(self.turboquant.get("value_bits", self.turboquant.get("bits", value_bits)))
+            value_bits = int(
+                self.turboquant.get("value_bits", self.turboquant.get("bits", value_bits))
+            )
 
         def bits_to_ggml(bits: int) -> Optional[int]:
             if bits >= 8:
@@ -1516,7 +1561,7 @@ class HorusProvider(BaseLLMProvider):
             raise ImportError(
                 "transformers and torch are required for Horus transformers models.\n"
                 "Please preinstall once with:\n"
-                "  pip install \"neuralnode[horus]\"\n"
+                '  pip install "neuralnode[horus]"\n'
                 "or:\n"
                 "  pip install transformers torch"
             )
@@ -1572,7 +1617,12 @@ class HorusProvider(BaseLLMProvider):
             model_kwargs["device_map"] = self.device_map
         if self.max_memory:
             model_kwargs["max_memory"] = self.max_memory
-        elif self.device == "cuda" and not self.device_map and not self.load_in_4bit and not self.load_in_8bit:
+        elif (
+            self.device == "cuda"
+            and not self.device_map
+            and not self.load_in_4bit
+            and not self.load_in_8bit
+        ):
             # Avoid moving the full safetensors model to GPU in one shot on 16 GB cards.
             model_kwargs["device_map"] = "auto"
 
@@ -1584,14 +1634,17 @@ class HorusProvider(BaseLLMProvider):
                     load_in_4bit=self.load_in_4bit,
                     load_in_8bit=self.load_in_8bit,
                     bnb_4bit_compute_dtype=(
-                        self.bnb_4bit_compute_dtype or (torch.float16 if self.load_in_4bit else None)
+                        self.bnb_4bit_compute_dtype
+                        or (torch.float16 if self.load_in_4bit else None)
                     ),
                     bnb_4bit_use_double_quant=self.bnb_4bit_use_double_quant,
                     bnb_4bit_quant_type=self.bnb_4bit_quant_type,
                 )
                 model_kwargs.setdefault("device_map", "auto")
             except ImportError:
-                self._warn("bitsandbytes is not available; loading Horus without 4/8-bit quantization.")
+                self._warn(
+                    "bitsandbytes is not available; loading Horus without 4/8-bit quantization."
+                )
 
         if self.attn_implementation:
             model_kwargs["attn_implementation"] = self.attn_implementation
@@ -1628,7 +1681,9 @@ class HorusProvider(BaseLLMProvider):
                 try:
                     self.device = "cpu"
                     self.torch_dtype = torch.float32 if torch is not None else self.torch_dtype
-                    self.model = AutoModelForCausalLM.from_pretrained(repo_id, **cpu_fallback_kwargs)
+                    self.model = AutoModelForCausalLM.from_pretrained(
+                        repo_id, **cpu_fallback_kwargs
+                    )
                     self._warn(
                         "Horus CUDA load ran out of memory and fell back to CPU. "
                         "Use GGUF or 4-bit loading for better local performance."
@@ -1666,7 +1721,9 @@ class HorusProvider(BaseLLMProvider):
             return "/".join(parts[:-1]), parts[-1]
         return None, model_id
 
-    def _normalize_messages(self, messages: Sequence[Union[Dict[str, Any], Message]]) -> List[Dict[str, str]]:
+    def _normalize_messages(
+        self, messages: Sequence[Union[Dict[str, Any], Message]]
+    ) -> List[Dict[str, str]]:
         normalized: List[Dict[str, str]] = []
         for message in messages:
             if isinstance(message, Message):
@@ -1698,7 +1755,9 @@ class HorusProvider(BaseLLMProvider):
             normalized_messages.append({"role": m["role"], "content": m["content"]})
 
         # Ensure a baseline system instruction always exists (tokenizer and fallback paths).
-        has_system = any(m["role"] == "system" and m["content"].strip() for m in normalized_messages)
+        has_system = any(
+            m["role"] == "system" and m["content"].strip() for m in normalized_messages
+        )
         if not has_system:
             normalized_messages.insert(0, {"role": "system", "content": UNIFIED_SYSTEM_PROMPT})
 
@@ -1708,7 +1767,7 @@ class HorusProvider(BaseLLMProvider):
                 if m["role"] == "system":
                     m["content"] = f"{m['content'].rstrip()}\n\n{thinking_instruction}"
                     break
-        
+
         # If tokenizer is loaded and has apply_chat_template, use it
         if self.tokenizer is not None and hasattr(self.tokenizer, "apply_chat_template"):
             try:
@@ -1720,19 +1779,27 @@ class HorusProvider(BaseLLMProvider):
                 if thinking is not None:
                     template_kwargs["enable_thinking"] = bool(thinking)
                 try:
-                    prompt = self.tokenizer.apply_chat_template(normalized_messages, **template_kwargs)
+                    prompt = self.tokenizer.apply_chat_template(
+                        normalized_messages, **template_kwargs
+                    )
                 except TypeError:
                     template_kwargs.pop("enable_thinking", None)
-                    prompt = self.tokenizer.apply_chat_template(normalized_messages, **template_kwargs)
+                    prompt = self.tokenizer.apply_chat_template(
+                        normalized_messages, **template_kwargs
+                    )
                 return prompt
             except Exception as exc:
                 self._warn("Chat template failed, falling back to unified format: %s", exc)
-        
+
         # Fallback to HF-style Horus chat template:
         # system content raw, user/assistant tagged, assistant generation prompt.
         parts: List[str] = []
 
-        system_messages = [m["content"].strip() for m in normalized_messages if m["role"] == "system" and m["content"].strip()]
+        system_messages = [
+            m["content"].strip()
+            for m in normalized_messages
+            if m["role"] == "system" and m["content"].strip()
+        ]
         parts.append("\n".join(system_messages) if system_messages else UNIFIED_SYSTEM_PROMPT)
 
         for message in normalized_messages:
@@ -1822,7 +1889,10 @@ class HorusProvider(BaseLLMProvider):
         try:
             return self._turboquant_runtime.create_cache()
         except Exception as exc:
-            self._warn("TurboQuant cache creation failed for Horus; falling back to standard cache. %s", exc)
+            self._warn(
+                "TurboQuant cache creation failed for Horus; falling back to standard cache. %s",
+                exc,
+            )
             return None
 
     def _generate_transformers_text(self, prompt: str, **kwargs) -> str:
@@ -2028,7 +2098,9 @@ class HorusProvider(BaseLLMProvider):
         **kwargs,
     ) -> Any:
         """Generate an image with a Horus text-to-image model and optionally save it."""
-        is_t2i = self._is_text_to_image_model_id(self.model_id) or self._is_gguf_text_to_image_model_id(self.model_id)
+        is_t2i = self._is_text_to_image_model_id(
+            self.model_id
+        ) or self._is_gguf_text_to_image_model_id(self.model_id)
         if not is_t2i:
             raise RuntimeError("generate_image is only available for Horus text-to-image models.")
         self.load()
@@ -2070,7 +2142,9 @@ class HorusProvider(BaseLLMProvider):
             call_kwargs["height"] = int(height)
         if seed is not None and torch is not None:
             generator_device = self.device if self.device == "cuda" else "cpu"
-            call_kwargs["generator"] = torch.Generator(device=generator_device).manual_seed(int(seed))
+            call_kwargs["generator"] = torch.Generator(device=generator_device).manual_seed(
+                int(seed)
+            )
 
         with self._quiet_native_output():
             result = self.model(**call_kwargs)
@@ -2082,6 +2156,7 @@ class HorusProvider(BaseLLMProvider):
         # ── Black-image / NaN guard ─────────────────────────────────────
         try:
             import numpy as np
+
             arr = np.asarray(image)
             if arr.max() == 0:
                 logger.warning(
@@ -2116,10 +2191,12 @@ class HorusProvider(BaseLLMProvider):
         **kwargs,
     ) -> Union[LLMResponse, Iterator[StreamingChunk]]:
         if self._is_text_to_image_model_id(self.model_id):
-            raise RuntimeError("Horus Lens is a text-to-image model. Use generate_image(prompt) instead of chat().")
+            raise RuntimeError(
+                "Horus Lens is a text-to-image model. Use generate_image(prompt) instead of chat()."
+            )
 
         normalized = self._normalize_messages(messages)
-        
+
         # Add tool descriptions to system prompt if tools are provided
         if tools:
             tool_desc = self._format_tool_descriptions(tools)
@@ -2127,7 +2204,7 @@ class HorusProvider(BaseLLMProvider):
                 "\n\nAvailable tools:\n"
                 + tool_desc
                 + "\n\nTo call a tool, respond with valid JSON: "
-                  '{"tool": "<name>", "arguments": {"<param>": "<value>"}}'
+                '{"tool": "<name>", "arguments": {"<param>": "<value>"}}'
             )
             # Find system message or add one
             has_system = False
@@ -2137,23 +2214,28 @@ class HorusProvider(BaseLLMProvider):
                     has_system = True
                     break
             if not has_system:
-                normalized.insert(0, {
-                    "role": "system",
-                    "content": UNIFIED_SYSTEM_PROMPT + tool_section
-                })
+                normalized.insert(
+                    0, {"role": "system", "content": UNIFIED_SYSTEM_PROMPT + tool_section}
+                )
 
         thinking = kwargs.pop("thinking", self.generation_config.get("thinking"))
-        show_thinking = bool(kwargs.pop("show_thinking", self.generation_config.get("show_thinking", False)))
+        show_thinking = bool(
+            kwargs.pop("show_thinking", self.generation_config.get("show_thinking", False))
+        )
         prompt = self._render_prompt(normalized, thinking=thinking, show_thinking=show_thinking)
         generation_kwargs = {
-            "temperature": temperature if temperature is not None else self.generation_config["temperature"],
+            "temperature": (
+                temperature if temperature is not None else self.generation_config["temperature"]
+            ),
             "max_new_tokens": max_tokens or self.generation_config["max_new_tokens"],
             "top_p": top_p if top_p is not None else self.generation_config["top_p"],
             **kwargs,
         }
 
         if stream:
-            return self.stream_chat(normalized, **generation_kwargs, thinking=thinking, show_thinking=show_thinking)
+            return self.stream_chat(
+                normalized, **generation_kwargs, thinking=thinking, show_thinking=show_thinking
+            )
 
         if self._is_gguf_model_id(self.model_id):
             content = self._generate_gguf_text(prompt, **generation_kwargs)
@@ -2185,7 +2267,9 @@ class HorusProvider(BaseLLMProvider):
             tool_calls=tool_calls,
         )
 
-    async def achat(self, messages: List[Dict[str, Any]], **kwargs) -> Union[LLMResponse, Iterator[StreamingChunk]]:
+    async def achat(
+        self, messages: List[Dict[str, Any]], **kwargs
+    ) -> Union[LLMResponse, Iterator[StreamingChunk]]:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, lambda: self.chat(messages, **kwargs))
 
@@ -2194,11 +2278,15 @@ class HorusProvider(BaseLLMProvider):
 
     def stream_chat(self, messages: List[Dict[str, str]], **kwargs) -> Iterator[StreamingChunk]:
         if self._is_text_to_image_model_id(self.model_id):
-            raise RuntimeError("Horus Lens is a text-to-image model. Use generate_image(prompt) instead of stream_chat().")
+            raise RuntimeError(
+                "Horus Lens is a text-to-image model. Use generate_image(prompt) instead of stream_chat()."
+            )
 
         normalized = self._normalize_messages(messages)
         thinking = kwargs.pop("thinking", self.generation_config.get("thinking"))
-        show_thinking = bool(kwargs.pop("show_thinking", self.generation_config.get("show_thinking", False)))
+        show_thinking = bool(
+            kwargs.pop("show_thinking", self.generation_config.get("show_thinking", False))
+        )
         prompt = self._render_prompt(normalized, thinking=thinking, show_thinking=show_thinking)
 
         if self._is_gguf_model_id(self.model_id):
@@ -2208,12 +2296,18 @@ class HorusProvider(BaseLLMProvider):
                     last_user_message = message.get("content", "")
                     break
             yield StreamingChunk(
-                content=self._strip_thinking_blocks(self._postprocess_assistant_text(
-                    self._generate_gguf_text(prompt, **kwargs),
-                    last_user_message,
-                )) if not show_thinking else self._postprocess_assistant_text(
-                    self._generate_gguf_text(prompt, **kwargs),
-                    last_user_message,
+                content=(
+                    self._strip_thinking_blocks(
+                        self._postprocess_assistant_text(
+                            self._generate_gguf_text(prompt, **kwargs),
+                            last_user_message,
+                        )
+                    )
+                    if not show_thinking
+                    else self._postprocess_assistant_text(
+                        self._generate_gguf_text(prompt, **kwargs),
+                        last_user_message,
+                    )
                 ),
                 is_finished=True,
             )
@@ -2221,7 +2315,9 @@ class HorusProvider(BaseLLMProvider):
 
         self.load()
         if self.model is None or self.tokenizer is None or TextIteratorStreamer is None:
-            yield StreamingChunk(content=self._generate_transformers_text(prompt, **kwargs), is_finished=True)
+            yield StreamingChunk(
+                content=self._generate_transformers_text(prompt, **kwargs), is_finished=True
+            )
             return
 
         settings = self._resolve_generation_settings(**kwargs)
@@ -2265,47 +2361,49 @@ class HorusProvider(BaseLLMProvider):
         thread.join()
         yield StreamingChunk(content="", is_finished=True)
 
-    def embed(self, texts: Union[str, List[str]], model: Optional[str] = None, **kwargs) -> Union[List[float], List[List[float]]]:
+    def embed(
+        self, texts: Union[str, List[str]], model: Optional[str] = None, **kwargs
+    ) -> Union[List[float], List[List[float]]]:
         """Generate embeddings using a fallback embedding model.
-        
+
         Horus is a text generation model and does not natively support embeddings.
         This method attempts to use sentence-transformers if available, or raises
         a helpful error message.
-        
+
         Args:
             texts: String or list of strings to embed
             model: Optional embedding model name (defaults to all-MiniLM-L6-v2)
             **kwargs: Additional arguments
-            
+
         Returns:
             List of embedding vectors
-            
+
         Raises:
             ImportError: If sentence-transformers is not installed
         """
         try:
             from sentence_transformers import SentenceTransformer
-            
+
             embed_model = model or "sentence-transformers/all-MiniLM-L6-v2"
-            
+
             # Lazy load the embedding model
-            if not hasattr(self, '_embedding_model') or self._embedding_model is None:
+            if not hasattr(self, "_embedding_model") or self._embedding_model is None:
                 logger.info(f"Loading embedding model: {embed_model}")
                 self._embedding_model = SentenceTransformer(embed_model)
-            
+
             # Handle single string input
             if isinstance(texts, str):
                 texts = [texts]
-            
+
             # Generate embeddings
             embeddings = self._embedding_model.encode(texts, convert_to_list=True)
-            
+
             # Return single vector if only one input
             if len(embeddings) == 1 and isinstance(texts, list) and len(texts) == 1:
                 return embeddings[0]
-            
+
             return embeddings
-            
+
         except ImportError:
             raise ImportError(
                 "Horus does not natively support embeddings. "
@@ -2316,8 +2414,10 @@ class HorusProvider(BaseLLMProvider):
                 "  nn.create_provider('nomic-embeddings')\n"
                 "  nn.create_provider('huggingface-embeddings')"
             )
-    
-    async def aembed(self, texts: Union[str, List[str]], model: Optional[str] = None, **kwargs) -> Union[List[float], List[List[float]]]:
+
+    async def aembed(
+        self, texts: Union[str, List[str]], model: Optional[str] = None, **kwargs
+    ) -> Union[List[float], List[List[float]]]:
         """Async version of embed - runs in executor."""
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, lambda: self.embed(texts, model=model, **kwargs))
@@ -2327,7 +2427,9 @@ class HorusProvider(BaseLLMProvider):
             "id": self.model_id,
             **self._model_info,
             "device": self.device,
-            "n_gpu_layers": self._resolve_n_gpu_layers() if self._is_gguf_model_id(self.model_id) else None,
+            "n_gpu_layers": (
+                self._resolve_n_gpu_layers() if self._is_gguf_model_id(self.model_id) else None
+            ),
             "device_map": self.device_map,
             "torch_dtype": str(self.torch_dtype),
             "loaded": self.model is not None,
@@ -2410,6 +2512,7 @@ class HorusProvider(BaseLLMProvider):
         try:
             # Look for JSON object patterns
             import json
+
             # Try to find JSON in the content
             json_pattern = r'\{[^{}]*"tool"[^}]*\}'
             matches = re.findall(json_pattern, content, re.DOTALL)
@@ -2417,11 +2520,13 @@ class HorusProvider(BaseLLMProvider):
                 try:
                     data = json.loads(match)
                     if "tool" in data and "arguments" in data:
-                        tool_calls.append(ToolCall(
-                            name=data["tool"],
-                            arguments=data["arguments"],
-                            call_id=f"call_{len(tool_calls)}"
-                        ))
+                        tool_calls.append(
+                            ToolCall(
+                                name=data["tool"],
+                                arguments=data["arguments"],
+                                call_id=f"call_{len(tool_calls)}",
+                            )
+                        )
                 except json.JSONDecodeError:
                     continue
             # Also try standard format {"name": ..., "arguments": ...}
@@ -2430,17 +2535,21 @@ class HorusProvider(BaseLLMProvider):
                     data = json.loads(content.strip())
                     if isinstance(data, dict):
                         if "name" in data and "arguments" in data:
-                            tool_calls.append(ToolCall(
-                                name=data["name"],
-                                arguments=data["arguments"],
-                                call_id=f"call_{len(tool_calls)}"
-                            ))
+                            tool_calls.append(
+                                ToolCall(
+                                    name=data["name"],
+                                    arguments=data["arguments"],
+                                    call_id=f"call_{len(tool_calls)}",
+                                )
+                            )
                         elif "tool" in data and "arguments" in data:
-                            tool_calls.append(ToolCall(
-                                name=data["tool"],
-                                arguments=data["arguments"],
-                                call_id=f"call_{len(tool_calls)}"
-                            ))
+                            tool_calls.append(
+                                ToolCall(
+                                    name=data["tool"],
+                                    arguments=data["arguments"],
+                                    call_id=f"call_{len(tool_calls)}",
+                                )
+                            )
                 except json.JSONDecodeError:
                     pass
         except Exception as exc:
@@ -2450,8 +2559,8 @@ class HorusProvider(BaseLLMProvider):
     def _clean_tool_content(self, content: str) -> str:
         """Clean tool JSON from content to get natural language response."""
         # Remove JSON blocks
-        cleaned = re.sub(r'\{[^{}]*"tool"[^}]*\}', '', content, flags=re.DOTALL)
-        cleaned = re.sub(r'\{[^{}]*"name"[^}]*\}', '', cleaned, flags=re.DOTALL)
+        cleaned = re.sub(r'\{[^{}]*"tool"[^}]*\}', "", content, flags=re.DOTALL)
+        cleaned = re.sub(r'\{[^{}]*"name"[^}]*\}', "", cleaned, flags=re.DOTALL)
         return cleaned.strip()
 
     def set_chat_template(self, template_name: str):
@@ -2461,11 +2570,15 @@ class HorusProvider(BaseLLMProvider):
             )
         self._chat_template = UNIFIED_CHAT_TEMPLATE_NAME
 
-    def speak(self, text: str, output_file: Optional[str] = None, voice_id: Optional[str] = None) -> str:
+    def speak(
+        self, text: str, output_file: Optional[str] = None, voice_id: Optional[str] = None
+    ) -> str:
         try:
             from ..replica import ReplicaTTS
         except ImportError as exc:
-            raise ImportError("Replica TTS is unavailable. Install edge-tts to enable Horus speech.") from exc
+            raise ImportError(
+                "Replica TTS is unavailable. Install edge-tts to enable Horus speech."
+            ) from exc
 
         tts = ReplicaTTS(voice_id=voice_id or self.tts_voice_id)
         return tts.speak(text, output_file=output_file)
@@ -2493,7 +2606,11 @@ class HorusProvider(BaseLLMProvider):
         if not model_id.lower().endswith(".gguf"):
             raise ValueError("register_gguf_variant expects a GGUF model id ending with .gguf")
         _, filename = cls._split_repo_and_filename(model_id)
-        quant_match = re.search(r"-(Q\d(?:_[A-Z0-9]+)?|TQ\d(?:_[A-Z0-9]+)?|F16|BF16)\.gguf$", filename, flags=re.IGNORECASE)
+        quant_match = re.search(
+            r"-(Q\d(?:_[A-Z0-9]+)?|TQ\d(?:_[A-Z0-9]+)?|F16|BF16)\.gguf$",
+            filename,
+            flags=re.IGNORECASE,
+        )
         quant = quant_match.group(1).upper() if quant_match else "GGUF"
         cls.HORUS_MODELS[model_id] = {
             "name": name or f"Horus {size} ({quant})",
@@ -2539,7 +2656,11 @@ class HorusProvider(BaseLLMProvider):
                 results.append(
                     {
                         "model_id": model_id,
-                        "quantization": info.get("quantization", {}).get("gguf") if isinstance(info.get("quantization"), dict) else info.get("quantization"),
+                        "quantization": (
+                            info.get("quantization", {}).get("gguf")
+                            if isinstance(info.get("quantization"), dict)
+                            else info.get("quantization")
+                        ),
                         "avg_latency_sec": round(sum(per_run) / len(per_run), 4),
                         "min_latency_sec": round(min(per_run), 4),
                         "max_latency_sec": round(max(per_run), 4),
@@ -2600,7 +2721,9 @@ class HorusModel(HorusProvider):
                     {
                         "model_id": model_id,
                         "canonical_model_id": str(info.get("model_id", model_id)),
-                        "official_name": str(info.get("official_name", HorusProvider._infer_official_name(model_id))),
+                        "official_name": str(
+                            info.get("official_name", HorusProvider._infer_official_name(model_id))
+                        ),
                         "type": str(info.get("type", "unknown")),
                     }
                 )

@@ -28,21 +28,17 @@ class APIKeyStore:
         self.rpm_limit = rpm_limit
         Path(self.database).parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as connection:
-            connection.execute(
-                """CREATE TABLE IF NOT EXISTS api_keys (
+            connection.execute("""CREATE TABLE IF NOT EXISTS api_keys (
                     token_hash TEXT PRIMARY KEY,
                     role TEXT NOT NULL CHECK(role IN ('admin', 'user')),
                     rpm_limit INTEGER,
                     created_at INTEGER NOT NULL,
                     revoked INTEGER NOT NULL DEFAULT 0
-                )"""
-            )
-            connection.execute(
-                """CREATE TABLE IF NOT EXISTS api_requests (
+                )""")
+            connection.execute("""CREATE TABLE IF NOT EXISTS api_requests (
                     token_hash TEXT NOT NULL,
                     requested_at INTEGER NOT NULL
-                )"""
-            )
+                )""")
             connection.execute(
                 "CREATE INDEX IF NOT EXISTS idx_api_requests_key_time ON api_requests(token_hash, requested_at)"
             )
@@ -168,13 +164,17 @@ def create_api_app(
     upstream_key = upstream_api_key or os.getenv("H_PREVIEW_UPSTREAM_API_KEY", "")
     remote_model = upstream_model or os.getenv("H_PREVIEW_UPSTREAM_MODEL", H_PREVIEW_HF_REPO)
     if not base_url:
-        raise ValueError("Set H_PREVIEW_UPSTREAM_URL to the remote server's OpenAI-compatible /v1 URL.")
+        raise ValueError(
+            "Set H_PREVIEW_UPSTREAM_URL to the remote server's OpenAI-compatible /v1 URL."
+        )
 
     app = FastAPI(title="NeuralNode Model API", version="1.0.0")
 
     def get_token(authorization: Optional[str]) -> str:
         if not authorization or not authorization.lower().startswith("bearer "):
-            raise HTTPException(status_code=401, detail={"message": "Bearer access token required."})
+            raise HTTPException(
+                status_code=401, detail={"message": "Bearer access token required."}
+            )
         return authorization[7:].strip()
 
     def require_admin(authorization: Optional[str]) -> str:
@@ -188,43 +188,63 @@ def create_api_app(
         token = get_token(authorization)
         metadata, allowed = store.authorize_request(token)
         if metadata is None:
-            raise HTTPException(status_code=401, detail={"message": "Invalid or revoked access token."})
+            raise HTTPException(
+                status_code=401, detail={"message": "Invalid or revoked access token."}
+            )
         if not allowed:
-            raise HTTPException(status_code=429, detail={"message": "Requests per minute limit exceeded."})
+            raise HTTPException(
+                status_code=429, detail={"message": "Requests per minute limit exceeded."}
+            )
         return metadata
 
     @app.get("/v1/models")
     def models(authorization: Optional[str] = Header(default=None)):
         request_access(authorization)
-        return {"object": "list", "data": [{"id": H_PREVIEW_MODEL, "object": "model", "owned_by": "neuralnode"}]}
+        return {
+            "object": "list",
+            "data": [{"id": H_PREVIEW_MODEL, "object": "model", "owned_by": "neuralnode"}],
+        }
 
     @app.get("/v1/access")
     def access_info(authorization: Optional[str] = Header(default=None)):
         metadata = store.authenticate(get_token(authorization))
         if metadata is None:
-            raise HTTPException(status_code=401, detail={"message": "Invalid or revoked access token."})
-        tier = "Admin" if metadata["role"] == "admin" else (
-            "elite" if metadata["rpm_limit"] is None else "basic"
+            raise HTTPException(
+                status_code=401, detail={"message": "Invalid or revoked access token."}
+            )
+        tier = (
+            "Admin"
+            if metadata["role"] == "admin"
+            else ("elite" if metadata["rpm_limit"] is None else "basic")
         )
         return {"role": metadata["role"], "tier": tier.title(), "rpm_limit": metadata["rpm_limit"]}
 
     @app.post("/v1/chat/completions")
-    def chat_completions(payload: dict[str, Any], authorization: Optional[str] = Header(default=None)):
+    def chat_completions(
+        payload: dict[str, Any], authorization: Optional[str] = Header(default=None)
+    ):
         request_access(authorization)
         requested_model = payload.get("model")
         if requested_model not in {H_PREVIEW_MODEL, remote_model, H_PREVIEW_HF_REPO}:
-            raise HTTPException(status_code=404, detail={"message": f"Unknown model: {requested_model}"})
+            raise HTTPException(
+                status_code=404, detail={"message": f"Unknown model: {requested_model}"}
+            )
         payload["model"] = remote_model
         headers = {"Content-Type": "application/json"}
         if upstream_key:
             headers["Authorization"] = f"Bearer {upstream_key}"
         try:
             response = requests.post(
-                f"{base_url}/chat/completions", headers=headers, json=payload,
-                timeout=(15, 600), stream=bool(payload.get("stream")),
+                f"{base_url}/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=(15, 600),
+                stream=bool(payload.get("stream")),
             )
         except requests.RequestException as exc:
-            raise HTTPException(status_code=502, detail={"message": f"Model upstream unavailable: {exc}"}) from exc
+            raise HTTPException(
+                status_code=502, detail={"message": f"Model upstream unavailable: {exc}"}
+            ) from exc
         if not response.ok:
             try:
                 detail = response.json()
@@ -234,6 +254,7 @@ def create_api_app(
             response.close()
             raise HTTPException(status_code=status, detail=detail)
         if payload.get("stream"):
+
             def stream_body():
                 try:
                     yield from response.iter_content(chunk_size=None)
@@ -251,7 +272,9 @@ def create_api_app(
         admin_token = require_admin(authorization)
         try:
             if payload.get("role", "user") == "admin":
-                raise ValueError("The owner admin token is created locally and can exist only once.")
+                raise ValueError(
+                    "The owner admin token is created locally and can exist only once."
+                )
             tier = str(payload.get("tier", "basic")).lower()
             rpm_limit = payload.get("rpm_limit")
             token = store.create_user_token(admin_token, rpm_limit, tier=tier)
@@ -305,8 +328,12 @@ def main() -> None:
 
 
 __all__ = [
-    "APIKeyStore", "H_PREVIEW_MODEL", "H_PREVIEW_HF_REPO",
-    "create_api_app", "generate_admin_token", "run_api_server",
+    "APIKeyStore",
+    "H_PREVIEW_MODEL",
+    "H_PREVIEW_HF_REPO",
+    "create_api_app",
+    "generate_admin_token",
+    "run_api_server",
 ]
 
 

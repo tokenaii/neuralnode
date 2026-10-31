@@ -31,6 +31,7 @@ from pathlib import Path
 
 from ..core import Memory, Message, MessageRole, ensure_llm_response
 
+
 class SlidingWindowMemory(Memory):
     """Memory that keeps only the most recent N user-assistant exchanges.
 

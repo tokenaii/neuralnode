@@ -24,9 +24,17 @@ class HPreviewProvider(OpenAICompatibleProvider):
     @property
     def capabilities(self) -> ProviderCapabilities:
         return ProviderCapabilities(
-            chat=True, text_completion=True, streaming=True, function_calling=True,
-            tool_use=True, vision=False, json_mode=True, embeddings=False,
-            system_prompt=True, context_window=262144, max_output_tokens=8192,
+            chat=True,
+            text_completion=True,
+            streaming=True,
+            function_calling=True,
+            tool_use=True,
+            vision=False,
+            json_mode=True,
+            embeddings=False,
+            system_prompt=True,
+            context_window=262144,
+            max_output_tokens=8192,
             async_support=True,
         )
 
@@ -45,7 +53,10 @@ class HPreviewProvider(OpenAICompatibleProvider):
                 role = item.get("role", "user")
                 item["role"] = getattr(role, "value", role)
             else:
-                item = {"role": getattr(message.role, "value", message.role), "content": message.content}
+                item = {
+                    "role": getattr(message.role, "value", message.role),
+                    "content": message.content,
+                }
                 item.update(message.metadata.get("tool_call") or {})
             normalized.append(item)
         return normalized

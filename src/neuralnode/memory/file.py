@@ -31,6 +31,7 @@ from pathlib import Path
 
 from ..core import Memory, Message, MessageRole, ensure_llm_response
 
+
 class FileMemory(Memory):
     """Persistent JSON-file-backed conversation memory.
 

@@ -30,6 +30,7 @@ try:
     from fastapi import FastAPI, HTTPException
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import StreamingResponse
+
     _FASTAPI_AVAILABLE = True
 except ImportError:
     FastAPI = None  # type: ignore
@@ -40,10 +41,12 @@ except ImportError:
 
 # ── Pydantic Models for OpenAI API ───────────────────────────────────────────
 
+
 class ChatMessage(BaseModel):
     role: str
     content: str
     name: Optional[str] = None
+
 
 class ChatCompletionRequest(BaseModel):
     model: str
@@ -60,6 +63,7 @@ class ChatCompletionRequest(BaseModel):
 
 
 # ── OpenAI-Compatible FastAPI Server ─────────────────────────────────────────
+
 
 class OpenClawServer:
     """FastAPI server exposing an OpenAI-compatible API for NeuralNode models."""
@@ -97,9 +101,9 @@ class OpenClawServer:
                         "id": getattr(self.node, "model", "neuralnode-model") or "neuralnode-model",
                         "object": "model",
                         "created": int(time.time()),
-                        "owned_by": "neuralnode"
+                        "owned_by": "neuralnode",
                     }
-                ]
+                ],
             }
 
         @self.app.post("/v1/chat/completions")
@@ -110,16 +114,15 @@ class OpenClawServer:
 
                 if request.stream:
                     return StreamingResponse(
-                        self._stream_completion(last_message, system_prompt, history, request.model),
-                        media_type="text/event-stream"
+                        self._stream_completion(
+                            last_message, system_prompt, history, request.model
+                        ),
+                        media_type="text/event-stream",
                     )
 
                 # Call NeuralNode chat function (synchronous blocking call)
                 response_text = self.node.chat(
-                    message=last_message,
-                    system_prompt=system_prompt,
-                    history=history,
-                    stream=False
+                    message=last_message, system_prompt=system_prompt, history=history, stream=False
                 )
 
                 return {
@@ -127,19 +130,14 @@ class OpenClawServer:
                     "object": "chat.completion",
                     "created": int(time.time()),
                     "model": request.model,
-                    "choices": [{
-                        "index": 0,
-                        "message": {
-                            "role": "assistant",
-                            "content": response_text
-                        },
-                        "finish_reason": "stop"
-                    }],
-                    "usage": {
-                        "prompt_tokens": -1,
-                        "completion_tokens": -1,
-                        "total_tokens": -1
-                    }
+                    "choices": [
+                        {
+                            "index": 0,
+                            "message": {"role": "assistant", "content": response_text},
+                            "finish_reason": "stop",
+                        }
+                    ],
+                    "usage": {"prompt_tokens": -1, "completion_tokens": -1, "total_tokens": -1},
                 }
             except Exception as e:
                 logger.error(f"Error in chat_completions: {e}")
@@ -172,18 +170,16 @@ class OpenClawServer:
         message: str,
         system_prompt: Optional[str],
         history: List[Dict[str, Any]],
-        model_name: str
+        model_name: str,
     ) -> Generator[str, None, None]:
         import json
+
         chat_id = f"chatcmpl-{int(time.time())}"
-        
+
         try:
             # Call streaming chat
             response_generator = self.node.chat(
-                message=message,
-                system_prompt=system_prompt,
-                history=history,
-                stream=True
+                message=message, system_prompt=system_prompt, history=history, stream=True
             )
 
             for chunk in response_generator:
@@ -192,11 +188,7 @@ class OpenClawServer:
                     "object": "chat.completion.chunk",
                     "created": int(time.time()),
                     "model": model_name,
-                    "choices": [{
-                        "index": 0,
-                        "delta": {"content": chunk},
-                        "finish_reason": None
-                    }]
+                    "choices": [{"index": 0, "delta": {"content": chunk}, "finish_reason": None}],
                 }
                 yield f"data: {json.dumps(data)}\n\n"
 
@@ -206,11 +198,7 @@ class OpenClawServer:
                 "object": "chat.completion.chunk",
                 "created": int(time.time()),
                 "model": model_name,
-                "choices": [{
-                    "index": 0,
-                    "delta": {},
-                    "finish_reason": "stop"
-                }]
+                "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
             }
             yield f"data: {json.dumps(stop_data)}\n\n"
             yield "data: [DONE]\n\n"
@@ -222,24 +210,26 @@ class OpenClawServer:
     def start(self) -> None:
         """Start the API server in a background thread."""
         import uvicorn
-        
+
         # Check if port is already in use
         if self._is_port_in_use(self.port):
-            logger.warning(f"Port {self.port} is already in use. Assuming server is already running.")
+            logger.warning(
+                f"Port {self.port} is already in use. Assuming server is already running."
+            )
             return
 
         config = uvicorn.Config(app=self.app, host=self.host, port=self.port, log_level="warning")
         self._server = uvicorn.Server(config)
-        
+
         self._thread = threading.Thread(target=self._server.run, daemon=True)
         self._thread.start()
-        
+
         # Wait for server to bind
         retries = 10
         while retries > 0 and not self._is_port_in_use(self.port):
             time.sleep(0.5)
             retries -= 1
-        
+
         logger.info(f"OpenAI-compatible local server started at http://{self.host}:{self.port}")
 
     def stop(self) -> None:
@@ -258,6 +248,7 @@ class OpenClawServer:
 
 
 # ── OpenClaw REST Client ─────────────────────────────────────────────────────
+
 
 class OpenClawClient:
     """REST Client to interact programmatically with a running OpenClaw Gateway."""
@@ -322,6 +313,7 @@ class OpenClawClient:
 
 # ── OpenClaw Process Manager ─────────────────────────────────────────────────
 
+
 class OpenClawManager:
     """Manages downloading, configuring, and executing the OpenClaw Gateway locally."""
 
@@ -332,7 +324,7 @@ class OpenClawManager:
         gateway_port: int = 18789,
         api_server_port: int = 18788,
         gateway_host: str = "127.0.0.1",
-        api_key: Optional[str] = None
+        api_key: Optional[str] = None,
     ):
         self.node = node
         self.install_dir = Path(install_dir or "./openclaw_runtime").resolve()
@@ -342,8 +334,10 @@ class OpenClawManager:
         # Never ship a shared credential as a fallback.  Callers can provide
         # one explicitly or via the environment; otherwise generate a fresh
         # per-manager token for the local gateway.
-        self.api_key = api_key or os.getenv("NEURALNODE_OPENCLAW_TOKEN") or secrets.token_urlsafe(32)
-        
+        self.api_key = (
+            api_key or os.getenv("NEURALNODE_OPENCLAW_TOKEN") or secrets.token_urlsafe(32)
+        )
+
         # Initialize internal server
         self.server = OpenClawServer(node=self.node, port=self.api_server_port)
         self.process: Optional[subprocess.Popen] = None
@@ -364,7 +358,7 @@ class OpenClawManager:
                 subprocess.run(
                     ["git", "clone", "https://github.com/openclaw/openclaw.git", str(repo_dir)],
                     check=True,
-                    capture_output=True
+                    capture_output=True,
                 )
             except subprocess.CalledProcessError as e:
                 raise RuntimeError(f"Failed to clone OpenClaw repository: {e.stderr.decode()}")
@@ -379,19 +373,22 @@ class OpenClawManager:
             elif shutil.which("npm"):
                 pm_cmd = ["npm", "install"]
             else:
-                raise RuntimeError("npm or pnpm is required to install OpenClaw dependencies. Install Node.js and retry.")
+                raise RuntimeError(
+                    "npm or pnpm is required to install OpenClaw dependencies. Install Node.js and retry."
+                )
             install_result = subprocess.run(
-                pm_cmd,
-                cwd=str(repo_dir),
-                check=True,
-                capture_output=True
+                pm_cmd, cwd=str(repo_dir), check=True, capture_output=True
             )
         except subprocess.CalledProcessError as e:
-            output = (e.stdout or b"").decode(errors="replace") + (e.stderr or b"").decode(errors="replace")
+            output = (e.stdout or b"").decode(errors="replace") + (e.stderr or b"").decode(
+                errors="replace"
+            )
             raise RuntimeError(f"Failed to install node dependencies: {output.strip()}")
 
         package_json_path = repo_dir / "package.json"
-        dist_entry_exists = (repo_dir / "dist" / "entry.mjs").exists() or (repo_dir / "dist" / "entry.js").exists()
+        dist_entry_exists = (repo_dir / "dist" / "entry.mjs").exists() or (
+            repo_dir / "dist" / "entry.js"
+        ).exists()
         if package_json_path.exists() and not dist_entry_exists:
             try:
                 with open(package_json_path, "r", encoding="utf-8") as f:
@@ -411,7 +408,9 @@ class OpenClawManager:
                         capture_output=True,
                     )
                 except subprocess.CalledProcessError as e:
-                    output = (e.stdout or b"").decode(errors="replace") + (e.stderr or b"").decode(errors="replace")
+                    output = (e.stdout or b"").decode(errors="replace") + (e.stderr or b"").decode(
+                        errors="replace"
+                    )
                     raise RuntimeError(f"Failed to build OpenClaw source tree: {output.strip()}")
 
         # Step 3: Write configuration pointing to NeuralNode API server
@@ -421,25 +420,28 @@ class OpenClawManager:
         """Write config files pointing to NeuralNode local API server."""
         repo_dir = self.install_dir / "openclaw"
         if not repo_dir.exists():
-            raise FileNotFoundError(f"OpenClaw directory not found at {repo_dir}. Run setup() first.")
+            raise FileNotFoundError(
+                f"OpenClaw directory not found at {repo_dir}. Run setup() first."
+            )
 
         # Write config.json
         import json
+
         config_path = repo_dir / "config.json"
         config_data = {
             "gateway": {
                 "port": self.gateway_port,
                 "host": self.gateway_host,
-                "token": self.api_key
+                "token": self.api_key,
             },
             "llm": {
                 "provider": "openai",
                 "baseURL": f"http://127.0.0.1:{self.api_server_port}/v1",
                 "apiKey": self.api_key,
-                "model": getattr(self.node, "model", "neuralnode-model") or "neuralnode-model"
-            }
+                "model": getattr(self.node, "model", "neuralnode-model") or "neuralnode-model",
+            },
         }
-        
+
         with open(config_path, "w") as f:
             json.dump(config_data, f, indent=2)
 
@@ -468,7 +470,7 @@ class OpenClawManager:
         # Find starting command
         # Use node openclaw.mjs gateway or npm run dev/start
         startup_cmd = ["node", "openclaw.mjs", "gateway", "--allow-unconfigured"]
-        
+
         # Fallback to dev command if js build not present
         if not (repo_dir / "openclaw.mjs").exists():
             # Check pnpm vs npm run dev
@@ -477,7 +479,9 @@ class OpenClawManager:
             elif shutil.which("npm"):
                 startup_cmd = ["npm", "run", "dev"]
             else:
-                raise RuntimeError("npm or pnpm is required to start OpenClaw. Install Node.js and retry.")
+                raise RuntimeError(
+                    "npm or pnpm is required to start OpenClaw. Install Node.js and retry."
+                )
 
         logger.info(f"Starting OpenClaw Gateway via: {' '.join(startup_cmd)}")
         process_env = os.environ.copy()
@@ -488,7 +492,8 @@ class OpenClawManager:
                 "GATEWAY_TOKEN": self.api_key,
                 "OPENAI_BASE_URL": f"http://127.0.0.1:{self.api_server_port}/v1",
                 "OPENAI_API_KEY": self.api_key,
-                "OPENAI_MODEL": getattr(self.node, "model", "neuralnode-model") or "neuralnode-model",
+                "OPENAI_MODEL": getattr(self.node, "model", "neuralnode-model")
+                or "neuralnode-model",
             }
         )
         self.process = subprocess.Popen(
@@ -497,7 +502,7 @@ class OpenClawManager:
             env=process_env,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
         )
 
         # Wait for gateway to start
@@ -517,7 +522,7 @@ class OpenClawManager:
                 f"OpenClaw process exited immediately with code {self.process.returncode}. "
                 f"Output: {(stdout or '') + (stderr or '')}"
             )
-            
+
         logger.warning("OpenClaw Gateway start timed out, but process is still running.")
 
     def stop(self) -> None:

@@ -21,6 +21,8 @@ import logging
 from typing import Optional, Dict, Any, List
 from pathlib import Path
 
+import requests
+
 from ..utils.dependencies import ensure_feature_dependencies
 
 logger = logging.getLogger(__name__)
@@ -128,8 +130,7 @@ class NeuralSpeech:
             import speech_recognition as sr_lib
         except ImportError:
             raise ImportError(
-                "speech_recognition is required. Install it:\n"
-                "  pip install SpeechRecognition"
+                "speech_recognition is required. Install it:\n" "  pip install SpeechRecognition"
             )
 
         self.language = language
@@ -294,14 +295,57 @@ class NeuralSpeech:
             with self._sr.AudioFile(wav_io) as source:
                 return self._recognizer.record(source)
         except ImportError:
-            raise ImportError(
-                "pydub is required to transcribe MP3 files:\n"
-                "  pip install pydub"
-            )
+            raise ImportError("pydub is required to transcribe MP3 files:\n" "  pip install pydub")
+
+
+class HTTPSTT:
+    """Speech-to-text adapter for HTTP services accepting raw audio bytes.
+
+    The default contract matches ``POST /transcribe`` services that return
+    ``{"text": "..."}``, including the TokenAI Opet Whisper endpoint.
+    """
+
+    _CONTENT_TYPES = {
+        ".wav": "audio/wav",
+        ".webm": "audio/webm",
+        ".ogg": "audio/ogg",
+        ".mp4": "audio/mp4",
+        ".m4a": "audio/mp4",
+    }
+
+    def __init__(
+        self,
+        base_url: str,
+        token: Optional[str] = None,
+        endpoint: str = "/transcribe",
+        timeout: float = 90,
+        token_header: str = "X-Opet-Tts-Token",
+    ):
+        self.url = base_url.rstrip("/") + "/" + endpoint.lstrip("/")
+        self.token = token
+        self.timeout = timeout
+        self.token_header = token_header
+
+    def transcribe(self, audio_path: str, language: Optional[str] = None) -> str:
+        path = Path(audio_path)
+        headers = {
+            "Content-Type": self._CONTENT_TYPES.get(path.suffix.lower(), "application/octet-stream")
+        }
+        if self.token:
+            headers[self.token_header] = self.token
+        response = requests.post(
+            self.url, data=path.read_bytes(), headers=headers, timeout=self.timeout
+        )
+        response.raise_for_status()
+        data = response.json()
+        if not isinstance(data, dict) or not isinstance(data.get("text"), str):
+            raise ValueError("The speech service response must contain a text field.")
+        return data["text"]
 
 
 __all__ = [
     "NeuralSpeech",
+    "HTTPSTT",
     "SUPPORTED_LANGUAGES",
     "SPEECH_LANGUAGES",
 ]
