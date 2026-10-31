@@ -42,7 +42,7 @@ Quick Start::
     text = sr.listen()
 """
 
-__version__ = "2.2.7"
+__version__ = "2.2.8"
 __author__ = "NeuralNode Contributors"
 
 # ── Core types ────────────────────────────────────────────────────────────────
@@ -64,6 +64,8 @@ from .core import (
 
 # ── Provider layer ────────────────────────────────────────────────────────────
 from .providers import (
+    repo_exists, repo_info, list_repo_files, infer_model_type, download_repo, resolve_repo, load_hf_model,
+    BaseLLMProvider,
     # Registry & factories
     ProviderRegistry,
     create_provider,
@@ -78,9 +80,9 @@ from .providers import (
     MistralProvider,
     CohereProvider,
     DeepSeekProvider,
-    HorusCyperNano,
-    HorusCyperNanoAPIError,
-    HorusCyperNanoProvider,
+    HorusCyberNano,
+    HorusCyberNanoAPIError,
+    HorusCyberNanoProvider,
     HPreviewProvider,
     LlamaCppProvider,
     TransformersProvider,
@@ -232,7 +234,6 @@ except ImportError:
 
 try:
     from .integrations.whatsapp import (
-        EvolutionWhatsAppBot,
         TwilioWhatsAppBot,
         create_twilio_whatsapp_bot,
     )
@@ -662,16 +663,17 @@ __all__ = [
     "ToolResult", "ParameterSpec", "BaseTool", "BaseProvider", "BaseAgent", "Memory",
 
     # Providers
-    "ProviderRegistry", "create_provider", "auto_select_provider",
+    "repo_exists", "repo_info", "list_repo_files", "infer_model_type", "download_repo", "resolve_repo", "load_hf_model",
+    "BaseLLMProvider", "ProviderRegistry", "create_provider", "auto_select_provider",
     "get_available_providers", "is_local_provider",
     "OllamaProvider", "AnthropicProvider", "GoogleProvider",
     "GroqProvider", "MistralProvider", "CohereProvider", "DeepSeekProvider",
-    "HorusCyperNano", "HorusCyperNanoAPIError", "HorusCyperNanoProvider",
+    "HorusCyberNano", "HorusCyberNanoAPIError", "HorusCyberNanoProvider",
     "HPreviewProvider",
     "APIKeyStore", "H_PREVIEW_HF_REPO", "H_PREVIEW_MODEL",
     "create_api_app", "generate_admin_token", "run_api_server",
     "LlamaCppProvider", "TransformersProvider", "UniversalLocalProvider",
-    "Horus", "HorusLensModel", "HorusModel", "HorusProvider", "load_horus_lens", "print_model_list",
+    "Horus", "HorusLensModel", "HorusModel", "HorusProvider", "load_horus_lens", "print_model_list", "list_models",
 
     # Memory
     "ConversationMemory", "FileMemory", "SlidingWindowMemory", "SummaryMemory",
@@ -741,7 +743,6 @@ if _THINKING_AVAILABLE:
     __all__ += ["ThinkingMode", "ThinkingResponse", "enable_thinking"]
 if _WHATSAPP_AVAILABLE:
     __all__ += [
-        "EvolutionWhatsAppBot",
         "TwilioWhatsAppBot",
         "create_twilio_whatsapp_bot",
     ]
@@ -751,3 +752,33 @@ if _OPENCLAW_AVAILABLE:
         "OpenClawServer",
         "OpenClawClient",
     ]
+
+# Backward-compatible aliases (typo fix: Cyper -> Cyber)
+HorusCyperNano = HorusCyberNano
+HorusCyperNanoAPIError = HorusCyberNanoAPIError
+HorusCyperNanoProvider = HorusCyberNanoProvider
+
+
+def list_models() -> dict:
+    """List all models supported by NeuralNode (TokenAI + Replica + community).
+
+    Returns a mapping of model id -> info dict. Includes Horus, Alo (speech-to-text),
+    and the Replica preview TTS model.
+    """
+    result = {}
+    try:
+        from .providers.horus import HorusModel
+        result.update(HorusModel.list_models(canonical=True))
+    except Exception:
+        pass
+    # Replica preview (TTS)
+    try:
+        from .replica import REPLICA_PREVIEW_MODEL, REPLICA_PREVIEW_STATUS
+        result[REPLICA_PREVIEW_MODEL] = {
+            "name": "Replica-Preview-0.6B",
+            "task": "text-to-speech",
+            "status": REPLICA_PREVIEW_STATUS,
+        }
+    except Exception:
+        pass
+    return result

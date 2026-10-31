@@ -1,4 +1,4 @@
-# Horus Cyper Nano model workers
+# Horus Cyber Nano model workers
 
 The production model host runs two independent CUDA-backed `llama-server`
 workers from the Q4_K_M GGUF. Both workers use the same private authentication
@@ -31,6 +31,6 @@ The CUDA runtime uses llama.cpp `b10298` with the response-parser fallback patch
 stored beside these deployment files. NeuralNode parses tool-call XML after the
 worker returns raw model content.
 
-The secret file `/etc/tokenai/horus-cyper-model.env` must be owned by root with
+The secret file `/etc/tokenai/horus-cyber-model.env` must be owned by root with
 mode `0600` and contain `MODEL_INTERNAL_API_KEY`. Never place that value in the
 repository.

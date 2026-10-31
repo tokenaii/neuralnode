@@ -43,9 +43,9 @@ from .chat import (
     OpenAIChatProvider,
     OpenRouterChatProvider,
     AgentRouterChatProvider,
-    HorusCyperNanoProvider,
-    HorusCyperNano,
-    HorusCyperNanoAPIError,
+    HorusCyberNanoProvider,
+    HorusCyberNano,
+    HorusCyberNanoAPIError,
     HPreviewProvider,
 )
 
@@ -113,6 +113,15 @@ from .local_providers import (
     TritonProvider,
 )
 from .universal_local import UniversalLocalProvider, load_local_model
+from .hfhub import (
+    repo_exists,
+    repo_info,
+    list_repo_files,
+    infer_model_type,
+    download_repo,
+    resolve_repo,
+    load_hf_model,
+)
 
 # ── Custom Model Providers ─────────────────────────────────────────────────────
 try:
@@ -164,8 +173,10 @@ _PROVIDER_MAP = {
     "openai":     OpenAIChatProvider,
     "openrouter": OpenRouterChatProvider,
     "agentrouter": AgentRouterChatProvider,
-    "horus-cyper-nano": HorusCyperNanoProvider,
-    "horus-cyper-nano-beta": HorusCyperNanoProvider,
+    "horus-cyber-nano": HorusCyberNanoProvider,
+    "horus-cyper-nano": HorusCyberNanoProvider,
+    "horus-cyper-nano-beta": HorusCyberNanoProvider,
+    "horus-cyber-nano-beta": HorusCyberNanoProvider,
     "h-preview": HPreviewProvider,
     # Local
     "ollama":        OllamaProvider,
@@ -226,7 +237,7 @@ __all__ = [
     "TogetherChatProvider", "FireworksChatProvider", "BedrockChatProvider",
     "VertexAIChatProvider", "OpenAIChatProvider", "OpenRouterChatProvider",
     "AgentRouterChatProvider",
-    "HorusCyperNanoProvider", "HorusCyperNano", "HorusCyperNanoAPIError",
+    "HorusCyberNanoProvider", "HorusCyberNano", "HorusCyberNanoAPIError",
     "HPreviewProvider",
 
     # Aliases
@@ -258,6 +269,15 @@ __all__ = [
     "BentoMLProvider", "TritonProvider", "MLXProvider",
     "UniversalLocalProvider", "load_local_model",
     
+    # HF Hub
+    "repo_exists", "repo_info", "list_repo_files", "infer_model_type",
+    "download_repo", "resolve_repo", "load_hf_model",
+
     # Custom Models
     "HorusProvider", "HorusModel", "HorusLensModel", "Horus", "load_horus", "load_horus_lens", "print_model_list",
 ]
+
+# Backward-compatible aliases (typo fix: Cyper -> Cyber)
+HorusCyperNanoProvider = HorusCyberNanoProvider
+HorusCyperNano = HorusCyberNano
+HorusCyperNanoAPIError = HorusCyberNanoAPIError

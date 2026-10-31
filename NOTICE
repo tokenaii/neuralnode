@@ -1,0 +1,15 @@
+NeuralNode Framework
+
+Copyright (c) 2024–2026 TokenAI. All rights reserved.
+
+NeuralNode and TokenAI are trademarks and proprietary intellectual property of
+TokenAI. Use of the source code is governed by the NeuralNode Source-Available
+License Version 1.0 in the LICENSE file.
+
+Required attribution for products using NeuralNode:
+
+"This product uses NeuralNode, a framework owned by TokenAI."
+"Source: https://github.com/tokenaii/neuralnode"
+
+Third-party components are governed by their own licenses. They are not
+relicensed by this NOTICE or by the NeuralNode license.

@@ -1,30 +1,39 @@
-# NeuralNode v2.2.7
+<p align="center">
+  <img src="docs/assets/neuralnode-logo-transparent.png" alt="NeuralNode — Connect models. Build AI." width="720">
+</p>
 
-NeuralNode is a Python AI framework focused on:
-- real cloud providers that are implemented
-- local model execution with Transformers, Ollama, llama.cpp, and Horus
-- agents, memory, and RAG
-- Replica TTS and speech recognition
-- Telegram integration
+<p align="center">
+  <a href="https://pypi.org/project/neuralnode/"><img src="https://img.shields.io/pypi/v/neuralnode.svg?style=flat-square" alt="PyPI version"></a>
+  <a href="https://pypi.org/project/neuralnode/"><img src="https://img.shields.io/pypi/pyversions/neuralnode.svg?style=flat-square" alt="Python versions"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Source--Available-172033.svg?style=flat-square" alt="Source-Available License"></a>
+  <a href="https://github.com/tokenaii/neuralnode/releases"><img src="https://img.shields.io/github/v/release/tokenaii/neuralnode?display_name=tag&sort=semver&style=flat-square" alt="Latest release"></a>
+</p>
 
-## Install
+<p align="center"><strong>Connect models. Build AI.</strong></p>
+
+<p align="center">NeuralNode <code>v2.2.8</code></p>
+
+NeuralNode is a Python framework for connecting cloud and local AI models to
+one consistent interface. Build applications with model providers, agents,
+tools, memory, RAG, embeddings, vector stores, and integrations without
+rewriting your application around a single provider.
+
+## Why NeuralNode?
+
+- **One interface for many models** — connect cloud APIs, local runtimes, and
+  custom providers through a unified interface.
+- **Production building blocks** — agents, tool calling, memory, RAG,
+  embeddings, vector stores, and API gateways.
+- **Local and hosted execution** — use Transformers, Ollama, llama.cpp, vLLM,
+  Horus, and other supported runtimes.
+- **Composable integrations** — connect applications to Telegram, Slack,
+  Discord, OpenClaw, speech, vision, and text-to-speech workflows.
+
+## Quickstart
 
 ```bash
 pip install neuralnode
-pip install "neuralnode[all]"
 ```
-
-Useful extras:
-
-```bash
-pip install "neuralnode[horus]"
-pip install "neuralnode[telegram]"
-pip install "neuralnode[replica]"
-pip install "neuralnode[speech]"
-pip install "neuralnode[turboquant]"
-```
-
-## Quick Start
 
 ```python
 import neuralnode as nn
@@ -37,6 +46,36 @@ ai = nn.NeuralNode(
 
 print(ai.chat("Hello from NeuralNode"))
 ```
+
+## Install optional integrations
+
+```bash
+pip install "neuralnode[all]"
+pip install "neuralnode[horus]"
+pip install "neuralnode[telegram]"
+pip install "neuralnode[replica]"
+pip install "neuralnode[speech]"
+pip install "neuralnode[turboquant]"
+```
+
+## Core capabilities
+
+- Chat and text-generation providers
+- Agents and structured tool calling
+- Conversation and persistent memory
+- Retrieval-Augmented Generation (RAG)
+- Embeddings and vector stores
+- Vision and speech-to-text
+- Text-to-speech and Replica integrations
+- OpenAI-compatible local and hosted gateways
+- Provider registry and custom provider extensions
+
+## Documentation
+
+- [Model API deployment](docs/model_api.md)
+- [Examples](examples/)
+- [Contributing](CONTRIBUTING.md)
+- [License and ownership](LICENSE)
 
 ## Horus
 
@@ -56,9 +95,9 @@ ai = nn.NeuralNode(
 print(ai.chat("Say hello."))
 ```
 
-### Horus Cyper Nano 1.0 BETA Early Access API
+### Horus Cyber Nano 1.0 BETA Early Access API
 
-Horus Cyper Nano 1.0 BETA is a Text-to-Text model. Approved Early Access users can call the hosted model through the same
+Horus Cyber Nano 1.0 BETA is a Text-to-Text model. Approved Early Access users can call the hosted model through the same
 `NeuralNode` interface. Each Access Token has its own server-enforced RPM limit,
 and API conversations are retained by TokenAI under the Early Access terms.
 
@@ -66,8 +105,8 @@ and API conversations are retained by TokenAI under the Early Access terms.
 import neuralnode as nn
 
 ai = nn.NeuralNode(
-    provider="horus-cyper-nano",
-    model="horus-cyper-nano-1.0-beta",
+    provider="horus-cyber-nano",
+    model="horus-cyber-nano-1.0-beta",
     api_key="horusNN-XXXXXXXXXXXXXXXX",
 )
 
@@ -79,7 +118,7 @@ The client reads `HORUS_CYPER_NANO_API_KEY` automatically. Override
 The production API base URL is `https://api.tokenai.llc/v1`. Agent Mode supports
 function tools, required or named tool choices, tool-result messages, and
 buffered SSE compatibility streams. The hosted Early Access model has a 32,768
-token context. See `examples/horus_cyper_nano_agent_mode.py` for the complete
+token context. See `examples/horus_cyber_nano_agent_mode.py` for the complete
 tool-call round trip. NeuralNode retries temporary HTTP 429, 502, and 503
 responses up to two times by default and respects the API Retry-After header.
 
@@ -129,6 +168,13 @@ Supported IDs currently include:
 - `Horus-Hiero-Mini-4B`
 - `Horus-Hiero-Mini-4B-Q4_K_M.gguf`
 - `Horus-Hiero-Mini-4B-Q6_K.gguf`
+- `Horus-Cyber-Nano-1.0`
+- `Horus-Cyber-Nano-1.0-Q4_K_M.gguf`
+- `Horus-Cyber-Nano-1.0-Q5_K_M.gguf`
+- `Horus-Cyber-Nano-1.0-Q6_K.gguf`
+- `Horus-Cyber-Nano-1.0-Q8_0.gguf`
+- `Horus-Cyber-Nano-1.0-F16.gguf`
+- `Horus-Taleeq-0.2B-Base`
 
 ### Horus Hiero
 
@@ -293,13 +339,13 @@ If the `turboquant` package is not installed or the backend cannot use it, Neura
 
 ## Notes
 
-- OpenAI is intentionally blocked in NeuralNode.
+- OpenAI-compatible providers are fully supported (OpenAI, OpenRouter, AgentRouter, H-Preview, etc.).
 - GGUF Horus models require `llama-cpp-python`.
 - Horus downloads from Hugging Face require `huggingface_hub`.
 
 ## OpenClaw Integration
 
-NeuralNode 2.2.0 introduces full end-to-end integration with OpenClaw. You can easily set up, start, and control OpenClaw directly through the framework.
+NeuralNode 2.2.8 includes the current OpenClaw integration. You can set up, start, and control OpenClaw directly through the framework.
 
 The integration operates by running a local FastAPI server in the background that exposes an OpenAI-compatible API to the OpenClaw Node gateway. This server proxies LLM requests directly to NeuralNode providers, allowing seamless interaction.
 
@@ -309,3 +355,55 @@ It also fully supports the WhatsApp API, allowing users to activate it and bind 
 
 - **TokenAI**: [https://tokenai.cloud/](https://tokenai.cloud/)
 - **NeuralNode**: [https://neuralnode.tokenai.cloud/](https://neuralnode.tokenai.cloud/)
+
+## License and ownership
+
+NeuralNode is distributed under the **TokenAI Source-Available License
+Version 1.0**. This is a source-available license, not an OSI-approved Open
+Source license.
+
+The NeuralNode Framework and the original NeuralNode source code are owned by
+**TokenAI**, subject to the separate licenses of third-party libraries, models,
+model weights, APIs, datasets, and other external materials. This repository's
+license does not transfer ownership of NeuralNode, TokenAI, or their trademarks.
+
+If you use, fork, embed, modify, or build a product on NeuralNode, you must
+retain the license and attribution notices and clearly state:
+
+> This product uses NeuralNode, a framework owned by TokenAI.
+
+See [LICENSE](LICENSE), [NOTICE](NOTICE), [TRADEMARKS.md](TRADEMARKS.md), and
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the applicable terms.
+
+## Contributing
+
+Contributions, bug fixes, tests, and documentation improvements are welcome
+through GitHub issues, forks, and pull requests. Every pull request is reviewed
+by TokenAI and may be accepted, changed, or rejected. A pull request becomes
+part of NeuralNode only after TokenAI merges it.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution terms and workflow.
+
+## Hugging Face Open-Weights Support
+
+Any open-weight model on **Hugging Face** can be downloaded and used with NeuralNode (not only TokenAI models). Use the built-in HF helpers:
+
+```python
+import neuralnode as nn
+
+# 1) Discover files in a repo
+print(nn.list_repo_files("org/model"))  # e.g. ["config.json", "model.safetensors", ...]
+
+# 2) Download the repo (or a specific file)
+path = nn.download_repo("org/model")                       # safetensors/auto
+path = nn.download_repo("org/model", file="model.gguf")    # GGUF
+
+# 3) Load it into NeuralNode
+llm = nn.load_hf_model("org/model", device="auto")
+print(llm.chat([{"role": "user", "content": "Hello with any HF model"}]))
+```
+
+Supported formats: **GGUF/GGML, SafeTensors, PyTorch (.bin/.pt), ONNX, AWQ, GPTQ**.
+Private or gated repos **are** supported by the HF helpers (with `HF_TOKEN` env var).
+Python example:
+

@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+worker_id="${1:?worker id is required}"
+
+case "$worker_id" in
+  1) port=8011 ;;
+  2) port=8012 ;;
+  *) echo "worker id must be 1 or 2" >&2; exit 64 ;;
+esac
+
+: "${MODEL_INTERNAL_API_KEY:?MODEL_INTERNAL_API_KEY is required}"
+
+exec /data/llama.cpp/build-cuda/bin/llama-server \
+  --model /data/horus-cyber-nano-1.0-q4_k_m.gguf \
+  --alias horus-cyber-nano-1.0-beta \
+  --host 172.31.28.151 \
+  --port "$port" \
+  --api-key "$MODEL_INTERNAL_API_KEY" \
+  --ctx-size 32768 \
+  --parallel 1 \
+  --cont-batching \
+  --flash-attn on \
+  --n-gpu-layers 99 \
+  --threads 8 \
+  --threads-http 4 \
+  --jinja \
+  --skip-chat-parsing

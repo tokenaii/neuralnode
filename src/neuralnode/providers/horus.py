@@ -382,6 +382,99 @@ class HorusProvider(BaseLLMProvider):
             "file_size": "4.48 GB",
             "context_window": 262144,
         },
+        "tokenaii/Horus-Cyber-Nano-1.0": {
+            "name": "Horus-Cyber-Nano-1.0",
+            "official_name": "Horus-Cyber-Nano-1.0",
+            "size": "16B",
+            "type": "safetensors",
+            "repo_id": "tokenaii/Horus-Cyber-Nano-1.0",
+            "task": "image-text-to-text",
+            "context_window": 131072,
+        },
+        "tokenaii/Horus-Cyber-Nano-1.2": {
+            "name": "Horus-Cyber-Nano-1.2",
+            "official_name": "Horus-Cyber-Nano-1.2",
+            "size": "16B",
+            "type": "safetensors",
+            "repo_id": "tokenaii/Horus-Cyber-Nano-1.2",
+            "task": "image-text-to-text",
+            "context_window": 131072,
+            "status": "coming soon",
+        },
+        "tokenaii/Horus-Cyber-Nano-1.2-GGUF/horus-cyber-nano-1.2-Q4_K_M.gguf": {
+            "name": "Horus-Cyber-Nano-1.2-Q4_K_M.gguf",
+            "official_name": "horus-cyber-nano-1.2-Q4_K_M.gguf",
+            "size": "16B",
+            "type": "gguf",
+            "repo_id": "tokenaii/Horus-Cyber-Nano-1.2-GGUF",
+            "task": "image-text-to-text",
+            "context_window": 131072,
+            "status": "coming soon",
+        },
+        "tokenaii/Horus-Cyber-Nano-1.0-GGUF/horus-cyber-nano-1.0-Q4_K_M.gguf": {
+            "name": "Horus-Cyber-Nano-1.0-Q4_K_M.gguf",
+            "official_name": "horus-cyber-nano-1.0-Q4_K_M.gguf",
+            "size": "16B",
+            "type": "gguf",
+            "quantization": "Q4_K_M",
+            "file_size": "10.54 GB",
+            "context_window": 131072,
+        },
+        "tokenaii/Horus-Cyber-Nano-1.0-GGUF/horus-cyber-nano-1.0-Q5_K_M.gguf": {
+            "name": "Horus-Cyber-Nano-1.0-Q5_K_M.gguf",
+            "official_name": "horus-cyber-nano-1.0-Q5_K_M.gguf",
+            "size": "16B",
+            "type": "gguf",
+            "quantization": "Q5_K_M",
+            "file_size": "12.04 GB",
+            "context_window": 131072,
+        },
+        "tokenaii/Horus-Cyber-Nano-1.0-GGUF/horus-cyber-nano-1.0-Q6_K.gguf": {
+            "name": "Horus-Cyber-Nano-1.0-Q6_K.gguf",
+            "official_name": "horus-cyber-nano-1.0-Q6_K.gguf",
+            "size": "16B",
+            "type": "gguf",
+            "quantization": "Q6_K",
+            "file_size": "14.28 GB",
+            "context_window": 131072,
+        },
+        "tokenaii/Horus-Cyber-Nano-1.0-GGUF/horus-cyber-nano-1.0-Q8_0.gguf": {
+            "name": "Horus-Cyber-Nano-1.0-Q8_0.gguf",
+            "official_name": "horus-cyber-nano-1.0-Q8_0.gguf",
+            "size": "16B",
+            "type": "gguf",
+            "quantization": "Q8_0",
+            "file_size": "16.97 GB",
+            "context_window": 131072,
+        },
+        "tokenaii/Horus-Cyber-Nano-1.0-GGUF/horus-cyber-nano-1.0-f16.gguf": {
+            "name": "Horus-Cyber-Nano-1.0-F16.gguf",
+            "official_name": "horus-cyber-nano-1.0-f16.gguf",
+            "size": "16B",
+            "type": "gguf",
+            "quantization": "F16",
+            "file_size": "31.93 GB",
+            "context_window": 131072,
+        },
+        "tokenaii/Horus-Taleeq-0.2B-Base": {
+            "name": "Horus-Taleeq-0.2B-Base",
+            "official_name": "Horus-Taleeq-0.2B-Base",
+            "size": "0.2B",
+            "type": "safetensors",
+            "repo_id": "tokenaii/Horus-Taleeq-0.2B-Base",
+            "task": "text-generation",
+            "context_window": 4096,
+        },
+        "tokenaii/Alo-Medium": {
+            "name": "Alo-Medium",
+            "official_name": "Alo-Medium",
+            "size": "Medium",
+            "type": "gguf",
+            "repo_id": "tokenaii/Alo-Medium",
+            "task": "speech-to-text",
+            "context_window": 0,
+            "status": "available",
+        },
     }
 
     CHAT_TEMPLATES = {
@@ -2468,6 +2561,11 @@ class HorusProvider(BaseLLMProvider):
             )
             for model_id, info in cls.HORUS_MODELS.items()
         }
+
+    @classmethod
+    def list_models(cls, canonical: bool = False) -> Dict[str, Dict[str, Any]]:
+        """Generic alias for listing all supported TokenAI models."""
+        return cls.list_available_models(canonical=canonical)
 
 
 def print_model_list():

@@ -47,7 +47,7 @@ class Document:
 
     def __post_init__(self):
         if self.doc_id is None:
-            self.doc_id = hashlib.md5(self.content.encode()).hexdigest()[:16]
+            self.doc_id = hashlib.sha256(self.content.encode()).hexdigest()[:16]
         if self.source and "source" not in self.metadata:
             self.metadata["source"] = self.source
         if not self.source:
@@ -191,6 +191,11 @@ class RecursiveCharacterTextSplitter(TextSplitter):
         for part in parts:
             part_len = self.length_function(part + sep)
             if current_len + part_len > self.chunk_size:
+                if not current and part_len > self.chunk_size and len(separators) > 1:
+                    # Part itself exceeds chunk_size and cannot be split by the
+                    # current separator; recurse with finer separators.
+                    chunks.extend(self._split_recursive(part, separators[1:]))
+                    continue
                 if current:
                     chunk_text = sep.join(current)
                     if self.length_function(chunk_text) > self.chunk_size and len(separators) > 1:
@@ -871,7 +876,9 @@ class _LexicalEmbeddingProvider:
         vector = [0.0] * self.dimensions
 
         for token, weight in counts.items():
-            index = int(hashlib.md5(token.encode("utf-8")).hexdigest(), 16) % self.dimensions
+            # MD5 is used only as a deterministic bucket hash, never for
+            # authentication or integrity.  Mark that intent explicitly.
+            index = int(hashlib.md5(token.encode("utf-8"), usedforsecurity=False).hexdigest(), 16) % self.dimensions
             vector[index] += float(weight)
 
         norm = math.sqrt(sum(value * value for value in vector))

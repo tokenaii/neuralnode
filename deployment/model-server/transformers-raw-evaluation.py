@@ -5,7 +5,7 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
-MODEL_PATH = "/data/Horus-Cyper-Nano-1.0-Trained"
+MODEL_PATH = "/data/Horus-Cyber-Nano-1.0-Trained"
 
 turns = [
     "Introduce yourself in one concise paragraph. State your model name, model type, and strongest cybersecurity use cases.",

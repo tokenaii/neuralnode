@@ -18,13 +18,11 @@ import importlib
 
 from .utils.dependencies import ensure_feature_dependencies
 
-try:
-    import edge_tts
-
-    EDGE_TTS_AVAILABLE = True
-except ImportError:
-    EDGE_TTS_AVAILABLE = False
-    edge_tts = None
+# Replica Preview 0.6B is a coming-soon diffusion TTS model (no edge_tts dependency).
+EDGE_TTS_AVAILABLE = False
+edge_tts = None
+REPLICA_PREVIEW_MODEL = "tokenaii/Replica-Preview-0.6B"
+REPLICA_PREVIEW_STATUS = "coming soon"
 
 logger = logging.getLogger(__name__)
 
@@ -149,6 +147,10 @@ class ReplicaTTS:
         return output_path
 
     def speak(self, text: str, blocking: bool = True, output_file: Optional[str] = None) -> str:
+        raise NotImplementedError(
+            "Replica Preview 0.6B (tokenaii/Replica-Preview-0.6B) is coming soon. "
+            "edge_tts dependency has been removed."
+        )
         if not output_file:
             output_file = f"replica_output_{abs(hash((self.voice_id, text))) % 100000}.mp3"
 

@@ -289,14 +289,15 @@ class ProviderRegistry:
         return cls._providers.get(name.lower())
     
     @classmethod
-    def create_provider(cls, name: str, **kwargs) -> BaseLLMProvider:
+    def create_provider(cls, name: str, cache: bool = True, **kwargs) -> BaseLLMProvider:
         """Create provider instance."""
         provider_class = cls.get_provider_class(name)
         if not provider_class:
             raise ValueError(f"Unknown provider: {name}. Available: {list(cls._providers.keys())}")
         
         instance = provider_class(**kwargs)
-        cls._instances[name.lower()] = instance
+        if cache:
+            cls._instances[name.lower()] = instance
         return instance
     
     @classmethod
@@ -311,22 +312,21 @@ class ProviderRegistry:
         if not provider_class:
             return None
         
-        # Create temp instance to get capabilities
-        try:
-            temp = provider_class.__new__(provider_class)
-            return {
-                "name": name,
-                "type": temp.provider_type.name if hasattr(temp, 'provider_type') else "unknown",
-                "default_model": temp.default_model if hasattr(temp, 'default_model') else "unknown",
-            }
-        except:
-            return {"name": name}
+        # Lazy info without instantiation
+        info = {"name": name}
+        for attr in ("provider_type", "default_model"):
+            val = getattr(provider_class, attr, None)
+            if isinstance(val, property):
+                continue
+            if val is not None:
+                info[attr] = getattr(val, "name", val)
+        return info
 
 
 # Convenience functions
-def create_provider(name: str, **kwargs) -> BaseLLMProvider:
+def create_provider(name: str, cache: bool = True, **kwargs) -> BaseLLMProvider:
     """Create a provider instance by name."""
-    return ProviderRegistry.create_provider(name, **kwargs)
+    return ProviderRegistry.create_provider(name, cache=cache, **kwargs)
 
 
 def get_available_providers() -> List[str]:

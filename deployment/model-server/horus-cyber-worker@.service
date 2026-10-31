@@ -1,0 +1,26 @@
+[Unit]
+Description=Horus Cyber Nano 1.0 BETA inference worker %i
+After=network-online.target nvidia-persistenced.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ec2-user
+Group=ec2-user
+EnvironmentFile=/etc/tokenai/horus-cyber-model.env
+Environment=LD_LIBRARY_PATH=/opt/pytorch/cuda/lib:/data/llama.cpp/build-cuda/bin
+ExecStart=/usr/local/bin/horus-cyber-worker %i
+Restart=always
+RestartSec=10
+TimeoutStartSec=300
+TimeoutStopSec=45
+KillSignal=SIGINT
+LimitNOFILE=65535
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/data
+
+[Install]
+WantedBy=multi-user.target

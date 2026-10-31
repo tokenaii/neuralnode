@@ -2,6 +2,7 @@
 
 import os
 from dataclasses import dataclass, field
+import pydantic as pd
 from typing import Optional, Dict, Any, List
 from pathlib import Path
 import json
@@ -34,21 +35,27 @@ def load_env_file(env_path: Optional[str] = None) -> Dict[str, str]:
     return env_vars
 
 
-@dataclass
-class ProviderConfig:
+def _load_provider_api_key(data):
+    """Load API key from environment if not provided."""
+    if data.get("api_key") is None and data.get("name"):
+        env_key = f"{data['name'].upper()}_API_KEY"
+        env_key = os.getenv(env_key)
+        if env_key:
+            data["api_key"] = env_key
+    return data
+
+
+class ProviderConfig(pd.BaseModel):
     """Configuration for an LLM provider."""
     name: str
     api_key: Optional[str] = None
     base_url: Optional[str] = None
     model: Optional[str] = None
-    timeout: int = 60
-    max_retries: int = 3
-    
-    def __post_init__(self):
-        """Load API key from environment if not provided."""
-        if self.api_key is None:
-            env_key = f"{self.name.upper()}_API_KEY"
-            self.api_key = os.getenv(env_key)
+    timeout: int = pd.Field(60, ge=1)
+    max_retries: int = pd.Field(3, ge=0)
+
+    def __init__(self, **values):
+        super().__init__(**_load_provider_api_key(dict(values)))
 
 
 @dataclass
@@ -230,3 +237,6 @@ def configure_from_file(path: str) -> Config:
     config = Config.from_file(path)
     set_config(config)
     return config
+from pydantic import BaseModel as _PYD_BaseModel
+import pydantic as pd
+

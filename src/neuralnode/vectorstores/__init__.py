@@ -6,6 +6,7 @@ Pinecone, Weaviate, Milvus, Chroma, Qdrant, Redis, FAISS
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Union, Tuple
 import logging
+import json
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -238,7 +239,6 @@ class FAISSVectorStore(BaseVectorStore):
     
     def save_local(self, folder_path: str) -> None:
         """Save FAISS index locally."""
-        import pickle
         import os
         
         os.makedirs(folder_path, exist_ok=True)
@@ -246,17 +246,29 @@ class FAISSVectorStore(BaseVectorStore):
         # Save FAISS index
         self._faiss.write_index(self._index, os.path.join(folder_path, "index.faiss"))
         
-        # Save docstore
-        with open(os.path.join(folder_path, "docstore.pkl"), "wb") as f:
-            pickle.dump({
+        # Save the document store as JSON.  Loading pickle from a path that
+        # users can download or exchange would allow arbitrary code execution.
+        with open(os.path.join(folder_path, "docstore.json"), "w", encoding="utf-8") as f:
+            json.dump({
                 "docstore": self._docstore,
                 "index_to_id": self._index_to_id
-            }, f)
+            }, f, ensure_ascii=False)
     
     @classmethod
-    def load_local(cls, folder_path: str, embedding_function: Any) -> "FAISSVectorStore":
-        """Load FAISS index from local."""
-        import pickle
+    def load_local(
+        cls,
+        folder_path: str,
+        embedding_function: Any,
+        *,
+        allow_unsafe_pickle: bool = False,
+    ) -> "FAISSVectorStore":
+        """Load a FAISS index from local JSON metadata.
+
+        Legacy ``docstore.pkl`` files are rejected by default because
+        unpickling untrusted data can execute arbitrary Python code.  Set
+        ``allow_unsafe_pickle=True`` only for a trusted, locally-created
+        legacy file and migrate it by saving the store again.
+        """
         import os
         
         try:
@@ -267,9 +279,22 @@ class FAISSVectorStore(BaseVectorStore):
         # Load index
         index = faiss.read_index(os.path.join(folder_path, "index.faiss"))
         
-        # Load docstore
-        with open(os.path.join(folder_path, "docstore.pkl"), "rb") as f:
-            data = pickle.load(f)
+        metadata_path = os.path.join(folder_path, "docstore.json")
+        legacy_path = os.path.join(folder_path, "docstore.pkl")
+        if os.path.exists(metadata_path):
+            with open(metadata_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        elif allow_unsafe_pickle and os.path.exists(legacy_path):
+            import pickle
+            with open(legacy_path, "rb") as f:
+                data = pickle.load(f)
+        elif os.path.exists(legacy_path):
+            raise ValueError(
+                "Refusing to load legacy docstore.pkl because pickle can execute code. "
+                "Use a trusted file with allow_unsafe_pickle=True, then save it as JSON."
+            )
+        else:
+            raise FileNotFoundError(f"No docstore.json found in {folder_path}")
         
         return cls(
             embedding_function=embedding_function,

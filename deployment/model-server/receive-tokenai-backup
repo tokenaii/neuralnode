@@ -49,8 +49,8 @@ case "$action" in
     echo "RESTORE_VERIFY_OK $name"
     ;;
   metrics)
-    echo "WORKER_1=$(systemctl is-active horus-cyper-worker@1.service || true)"
-    echo "WORKER_2=$(systemctl is-active horus-cyper-worker@2.service || true)"
+    echo "WORKER_1=$(systemctl is-active horus-cyber-worker@1.service || true)"
+    echo "WORKER_2=$(systemctl is-active horus-cyber-worker@2.service || true)"
     nvidia-smi --query-gpu=memory.used,memory.free,utilization.gpu,temperature.gpu \
       --format=csv,noheader,nounits | awk -F, '{gsub(/ /,""); print "GPU_USED_MIB="$1"\nGPU_FREE_MIB="$2"\nGPU_UTILIZATION="$3"\nGPU_TEMPERATURE_C="$4}'
     df -P /data | awk 'NR==2 {gsub(/%/,"",$5); print "DATA_DISK_USED_PERCENT="$5}'

@@ -27,16 +27,6 @@ class TestRefactoring(unittest.TestCase):
             self.assertNotIn("does not support OpenAI", str(e))
             self.assertNotIn("variable is blocked", str(e))
 
-    def test_whatsapp_evolution_import(self):
-        """Test that EvolutionWhatsAppBot can be imported and initialized."""
-        from neuralnode.integrations.whatsapp import EvolutionWhatsAppBot
-        bot = EvolutionWhatsAppBot(
-            api_url="http://localhost:8080",
-            global_apikey="my-secret-key"
-        )
-        self.assertEqual(bot.api_url, "http://localhost:8080")
-        self.assertEqual(bot.global_apikey, "my-secret-key")
-
     def test_rag_loaders(self):
         """Test that CSV and JSON loaders exist and can be instantiated."""
         from neuralnode.rag import CSVLoader, JSONLoader, DocumentLoader

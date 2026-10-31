@@ -103,10 +103,27 @@ class OpenAICompatibleProvider(BaseLLMProvider):
         }
 
     async def achat(self, messages, **kwargs):
-        import asyncio
+        import httpx
 
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, lambda: self.chat(messages, **kwargs))
+        payload = {
+            "messages": self._payload_messages(messages),
+            "model": self.model,
+            **kwargs,
+        }
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+            **self.get_custom_headers(),
+        }
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            response = await client.post(
+                f"{self.base_url}/chat/completions",
+                headers=headers,
+                json=payload,
+            )
+            response.raise_for_status()
+            data = response.json()
+        return self._parse_completion(data)
 
     def embed(self, texts, model=None, **kwargs):
         values = [texts] if isinstance(texts, str) else list(texts)
@@ -128,10 +145,26 @@ class OpenAICompatibleProvider(BaseLLMProvider):
         return embeddings[0] if isinstance(texts, str) and embeddings else embeddings
 
     async def aembed(self, texts, model=None, **kwargs):
-        import asyncio
+        import httpx
 
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, lambda: self.embed(texts, model=model, **kwargs))
+        values = [texts] if isinstance(texts, str) else list(texts)
+        selected_model = model or kwargs.pop("embedding_model", "text-embedding-3-small")
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+            **self.get_custom_headers(),
+        }
+        payload = {"model": selected_model, "input": values, **kwargs}
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            response = await client.post(
+                f"{self.base_url}/embeddings",
+                headers=headers,
+                json=payload,
+            )
+            response.raise_for_status()
+            data = response.json()
+        embeddings = [item.get("embedding", []) for item in data.get("data", [])]
+        return embeddings[0] if isinstance(texts, str) and embeddings else embeddings
 
 
 

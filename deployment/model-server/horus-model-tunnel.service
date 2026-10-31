@@ -1,5 +1,5 @@
 [Unit]
-Description=Private tunnels to Horus Cyper model workers
+Description=Private tunnels to Horus Cyber model workers
 After=network-online.target
 Wants=network-online.target
 

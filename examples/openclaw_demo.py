@@ -38,7 +38,8 @@ def main():
         install_dir="./openclaw_runtime",  # Download path for OpenClaw repo
         gateway_port=18789,                # OpenClaw client gateway port
         api_server_port=18788,             # OpenAI-compatible API server port
-        api_key="REDACTED_SHARED_TOKEN"    # Gateway authorization key
+        # Uses NEURALNODE_OPENCLAW_TOKEN when set, otherwise generates a
+        # fresh per-run local gateway token.
     )
     print(f"   Runtime Directory: {manager.install_dir}")
 

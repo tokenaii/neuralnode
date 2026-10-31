@@ -7,6 +7,7 @@ This module provides:
 """
 
 import os
+import secrets
 import sys
 import time
 import socket
@@ -287,7 +288,8 @@ class OpenClawClient:
         response = requests.post(
             f"{self.gateway_url}/api/sessions",
             json=payload,
-            headers=self.headers
+            headers=self.headers,
+            timeout=30,
         )
         if response.status_code not in (200, 201):
             raise RuntimeError(f"Failed to create session: {response.text}")
@@ -299,7 +301,8 @@ class OpenClawClient:
         response = requests.post(
             f"{self.gateway_url}/api/sessions/{session_id}/messages",
             json=payload,
-            headers=self.headers
+            headers=self.headers,
+            timeout=30,
         )
         if response.status_code != 200:
             raise RuntimeError(f"Failed to send task: {response.text}")
@@ -309,7 +312,8 @@ class OpenClawClient:
         """Retrieve status details and execution logs for a session."""
         response = requests.get(
             f"{self.gateway_url}/api/sessions/{session_id}",
-            headers=self.headers
+            headers=self.headers,
+            timeout=30,
         )
         if response.status_code != 200:
             raise RuntimeError(f"Failed to get session status: {response.text}")
@@ -335,7 +339,10 @@ class OpenClawManager:
         self.gateway_port = gateway_port
         self.api_server_port = api_server_port
         self.gateway_host = gateway_host
-        self.api_key = api_key
+        # Never ship a shared credential as a fallback.  Callers can provide
+        # one explicitly or via the environment; otherwise generate a fresh
+        # per-manager token for the local gateway.
+        self.api_key = api_key or os.getenv("NEURALNODE_OPENCLAW_TOKEN") or secrets.token_urlsafe(32)
         
         # Initialize internal server
         self.server = OpenClawServer(node=self.node, port=self.api_server_port)
@@ -423,12 +430,12 @@ class OpenClawManager:
             "gateway": {
                 "port": self.gateway_port,
                 "host": self.gateway_host,
-                "token": self.api_key or "REDACTED_SHARED_TOKEN"
+                "token": self.api_key
             },
             "llm": {
                 "provider": "openai",
                 "baseURL": f"http://127.0.0.1:{self.api_server_port}/v1",
-                "apiKey": "REDACTED_SHARED_TOKEN",
+                "apiKey": self.api_key,
                 "model": getattr(self.node, "model", "neuralnode-model") or "neuralnode-model"
             }
         }
@@ -442,7 +449,7 @@ class OpenClawManager:
             f.write(f"PORT={self.gateway_port}\n")
             f.write(f"GATEWAY_HOST={self.gateway_host}\n")
             f.write(f"OPENAI_BASE_URL=http://127.0.0.1:{self.api_server_port}/v1\n")
-            f.write("OPENAI_API_KEY=REDACTED_SHARED_TOKEN\n")
+            f.write(f"OPENAI_API_KEY={self.api_key}\n")
             if self.api_key:
                 f.write(f"GATEWAY_TOKEN={self.api_key}\n")
 
@@ -478,9 +485,9 @@ class OpenClawManager:
             {
                 "PORT": str(self.gateway_port),
                 "GATEWAY_HOST": self.gateway_host,
-                "GATEWAY_TOKEN": self.api_key or "REDACTED_SHARED_TOKEN",
+                "GATEWAY_TOKEN": self.api_key,
                 "OPENAI_BASE_URL": f"http://127.0.0.1:{self.api_server_port}/v1",
-                "OPENAI_API_KEY": "REDACTED_SHARED_TOKEN",
+                "OPENAI_API_KEY": self.api_key,
                 "OPENAI_MODEL": getattr(self.node, "model", "neuralnode-model") or "neuralnode-model",
             }
         )
@@ -531,4 +538,4 @@ class OpenClawManager:
     def get_client(self) -> OpenClawClient:
         """Get an initialized OpenClawClient for the gateway."""
         url = f"http://{self.gateway_host}:{self.gateway_port}"
-        return OpenClawClient(gateway_url=url, api_key=self.api_key or "REDACTED_SHARED_TOKEN")
+        return OpenClawClient(gateway_url=url, api_key=self.api_key)
