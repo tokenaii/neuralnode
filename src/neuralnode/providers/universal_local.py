@@ -56,6 +56,11 @@ class UniversalLocalProvider(BaseProvider):
     - AWQ/GPTQ → AutoAWQ / Transformers
     """
 
+    @property
+    def provider_name(self) -> str:
+        """Return the provider identifier used by NeuralNode."""
+        return "universal-local"
+
     def __init__(
         self,
         model_path: str,

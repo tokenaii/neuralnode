@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 sys.path.insert(0, "src")
 from neuralnode.providers import infer_model_type
 from neuralnode.providers.hfhub import _download_file, download_repo
+from neuralnode.providers.universal_local import UniversalLocalProvider
 
 
 class TestHFHubHelpers(unittest.TestCase):
@@ -85,6 +86,12 @@ class TestHFHubHelpers(unittest.TestCase):
             stream=True,
             timeout=60,
         )
+
+    def test_universal_local_provider_is_instantiable(self):
+        with tempfile.TemporaryDirectory() as model_dir:
+            provider = UniversalLocalProvider(model_path=model_dir, device="cpu")
+
+        self.assertEqual(provider.provider_name, "universal-local")
 
 
 if __name__ == "__main__":
