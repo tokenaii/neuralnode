@@ -18,12 +18,10 @@ Example::
 
 from __future__ import annotations
 
-import os
-import json
 import logging
-import shutil
-from pathlib import Path
-from typing import Optional, Dict, Any, List, Callable
+import os
+from pathlib import Path, PurePosixPath
+from typing import Any, Callable, Dict, List, Optional
 
 import requests
 
@@ -96,7 +94,15 @@ def _download_file(
     repo_id: str, path: str, dest_dir: Path, progress_callback: Optional[Callable] = None
 ) -> Path:
     """Download a single file from HF repo into dest_dir preserving path."""
-    out = dest_dir / Path(path).name
+    relative_path = PurePosixPath(path)
+    if relative_path.is_absolute() or ".." in relative_path.parts or "\\" in path:
+        raise ValueError(f"Invalid Hugging Face repository path: {path!r}")
+    root = dest_dir.resolve()
+    out = dest_dir.joinpath(*relative_path.parts).resolve()
+    try:
+        out.relative_to(root)
+    except ValueError as exc:
+        raise ValueError(f"Invalid Hugging Face repository path: {path!r}") from exc
     out.parent.mkdir(parents=True, exist_ok=True)
     if out.exists() and out.stat().st_size > 0:
         return out
@@ -138,9 +144,9 @@ def download_repo(
     """Download an HF model (or specific file) locally.
 
     For GGUF repos (or when ``file`` is given), downloads exactly the file.
-    For safetensors repos, downloads the minimal required files: config/tokenizer
-    plus every weight file needed (skipping extra aux files). Returns path to the
-    primary weight file or a repo folder.
+    For model repositories, downloads the minimal required files: config/tokenizer
+    plus every weight file needed. Returns a model directory for Transformers
+    models, or the selected file for GGUF and ONNX repositories.
     """
     dest_root = (
         Path(cache_dir)
@@ -160,20 +166,16 @@ def download_repo(
     kind = infer_model_type(files)
     if kind == "gguf":
         weight_files = [f for f in files if f.lower().endswith(".gguf")]
+    elif kind == "onnx":
+        weight_files = [f for f in files if f.lower().endswith(".onnx")]
     else:
         weight_files = _pick_weight_files(files)
 
     if not weight_files:
         raise RuntimeError(f"No loadable weight files found in {repo_id} (kind={kind}).")
 
-    primary = dest / Path(weight_files[0]).name
-    if primary.exists() and primary.stat().st_size > 0:
-        # Already present; verify the aux files too?
-        if not include_aux:
-            return primary
-    else:
-        for w in weight_files:
-            _download_file(repo_id, w, dest, progress_callback)
+    for weight_file in weight_files:
+        _download_file(repo_id, weight_file, dest, progress_callback)
 
     if include_aux:
         for f in files:
@@ -181,7 +183,9 @@ def download_repo(
             if low in _AUX_EXTS or low.endswith(tuple(_AUX_EXTS)):
                 _download_file(repo_id, f, dest, progress_callback)
 
-    return primary
+    if kind in {"gguf", "onnx"}:
+        return dest.joinpath(*PurePosixPath(weight_files[0]).parts)
+    return dest
 
 
 def resolve_repo(repo_id: str) -> Path:
@@ -200,8 +204,8 @@ def load_hf_model(repo_id: str, device: str = "auto", **kwargs):
         from .horus import HorusModel
 
         models = HorusModel.list_available_models(canonical=True)
-        canonical = [mid for mid in models.keys()]
-        if repo_id in canonical or repo_id in canonical:
+        canonical = list(models)
+        if repo_id in canonical:
             cls = HorusModel
             return cls(model_id=repo_id, device=device, **kwargs)
     except Exception:
