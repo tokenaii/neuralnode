@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from typing import Any, Dict, List
 
@@ -79,6 +80,32 @@ class OpenAICompatibleProvider(BaseLLMProvider):
             payload.append({"role": role, "content": content})
         return payload
 
+    @staticmethod
+    def _payload_tools(tools):
+        """Convert NeuralNode tools to OpenAI-compatible function schemas."""
+        return [tool if isinstance(tool, dict) else tool.get_schema() for tool in tools]
+
+    @staticmethod
+    def _normalize_tool_calls(tool_calls):
+        """Normalize OpenAI tool-call objects for NeuralNode's response format."""
+        normalized = []
+        for tool_call in tool_calls or []:
+            function = tool_call.get("function", {})
+            arguments = function.get("arguments", tool_call.get("arguments", {}))
+            if isinstance(arguments, str):
+                try:
+                    arguments = json.loads(arguments)
+                except json.JSONDecodeError:
+                    arguments = {}
+            normalized.append(
+                {
+                    "name": function.get("name") or tool_call.get("name", ""),
+                    "arguments": arguments or {},
+                    "call_id": tool_call.get("id") or tool_call.get("call_id"),
+                }
+            )
+        return normalized
+
     def chat(
         self,
         messages,
@@ -107,7 +134,7 @@ class OpenAICompatibleProvider(BaseLLMProvider):
             "max_tokens": max_tokens or 4096,
         }
         if tools:
-            payload["tools"] = tools
+            payload["tools"] = self._payload_tools(tools)
             payload["tool_choice"] = tool_choice or "auto"
         if response_format:
             payload["response_format"] = response_format
@@ -129,7 +156,7 @@ class OpenAICompatibleProvider(BaseLLMProvider):
             "provider": self.provider_name,
             "usage": data.get("usage", {}),
             "finish_reason": choice.get("finish_reason"),
-            "tool_calls": message.get("tool_calls", []),
+            "tool_calls": self._normalize_tool_calls(message.get("tool_calls", [])),
         }
 
     async def achat(self, messages, **kwargs):
@@ -141,6 +168,8 @@ class OpenAICompatibleProvider(BaseLLMProvider):
             "model": selected_model,
             **kwargs,
         }
+        if payload.get("tools"):
+            payload["tools"] = self._payload_tools(payload["tools"])
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",

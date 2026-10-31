@@ -307,15 +307,32 @@ class BaseProvider(ABC):
 
     def supports_tools(self) -> bool:
         """Check if provider supports tool calling."""
-        return self.capabilities.get("tools", False)
+        capabilities = self.capabilities
+        if isinstance(capabilities, dict):
+            return bool(
+                capabilities.get("tools", False)
+                or capabilities.get("tool_use", False)
+                or capabilities.get("function_calling", False)
+            )
+        return bool(
+            getattr(capabilities, "tools", False)
+            or getattr(capabilities, "tool_use", False)
+            or getattr(capabilities, "function_calling", False)
+        )
 
     def supports_streaming(self) -> bool:
         """Check if provider supports streaming."""
-        return self.capabilities.get("streaming", False)
+        capabilities = self.capabilities
+        if isinstance(capabilities, dict):
+            return bool(capabilities.get("streaming", False))
+        return bool(getattr(capabilities, "streaming", False))
 
     def supports_embeddings(self) -> bool:
         """Check if provider supports embeddings."""
-        return self.capabilities.get("embeddings", False)
+        capabilities = self.capabilities
+        if isinstance(capabilities, dict):
+            return bool(capabilities.get("embeddings", False))
+        return bool(getattr(capabilities, "embeddings", False))
 
     def _get_api_key_from_env(self) -> Optional[str]:
         """Get API key from environment variable."""
