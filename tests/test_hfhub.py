@@ -7,7 +7,10 @@ from unittest.mock import MagicMock, patch
 sys.path.insert(0, "src")
 from neuralnode.providers import infer_model_type
 from neuralnode.providers.hfhub import _download_file, download_repo
-from neuralnode.providers.universal_local import UniversalLocalProvider
+from neuralnode.providers.universal_local import (
+    UniversalLocalProvider,
+    _generation_options,
+)
 
 
 class TestHFHubHelpers(unittest.TestCase):
@@ -92,6 +95,19 @@ class TestHFHubHelpers(unittest.TestCase):
             provider = UniversalLocalProvider(model_path=model_dir, device="cpu")
 
         self.assertEqual(provider.provider_name, "universal-local")
+
+    def test_greedy_generation_does_not_pass_zero_temperature(self):
+        options = _generation_options(0, 8, 0, 2)
+
+        self.assertFalse(options["do_sample"])
+        self.assertNotIn("temperature", options)
+        self.assertEqual(options["max_new_tokens"], 8)
+
+    def test_sampling_generation_passes_temperature(self):
+        options = _generation_options(0.4, 8, 0, 2)
+
+        self.assertTrue(options["do_sample"])
+        self.assertEqual(options["temperature"], 0.4)
 
 
 if __name__ == "__main__":

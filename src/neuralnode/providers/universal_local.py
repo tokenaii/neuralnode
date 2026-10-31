@@ -45,6 +45,18 @@ class ModelInfo:
     memory_used_mb: float
 
 
+def _generation_options(temperature, max_tokens, pad_token_id, eos_token_id):
+    options = {
+        "max_new_tokens": max_tokens,
+        "do_sample": temperature > 0,
+        "pad_token_id": pad_token_id,
+        "eos_token_id": eos_token_id,
+    }
+    if temperature > 0:
+        options["temperature"] = temperature
+    return options
+
+
 class UniversalLocalProvider(BaseProvider):
     """Universal provider that auto-detects and loads ANY local model format.
 
@@ -458,15 +470,17 @@ class UniversalLocalProvider(BaseProvider):
         device = next(self._model.parameters()).device
         inputs = {k: v.to(device) for k, v in inputs.items()}
 
+        temperature = options.get("temperature", 0.7)
+        # Transformers rejects temperature=0 even when sampling is disabled.
+        generation_options = _generation_options(
+            temperature,
+            options.get("max_tokens", 512),
+            self._tokenizer.pad_token_id,
+            self._tokenizer.eos_token_id,
+        )
+
         with torch.no_grad():
-            outputs = self._model.generate(
-                **inputs,
-                max_new_tokens=options.get("max_tokens", 512),
-                temperature=options.get("temperature", 0.7),
-                do_sample=True,
-                pad_token_id=self._tokenizer.pad_token_id,
-                eos_token_id=self._tokenizer.eos_token_id,
-            )
+            outputs = self._model.generate(**inputs, **generation_options)
 
         generated = outputs[0][inputs["input_ids"].shape[1] :]
         response_text = self._tokenizer.decode(generated, skip_special_tokens=True)
