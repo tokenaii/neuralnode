@@ -2,7 +2,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, "src")
 from neuralnode.providers import infer_model_type
@@ -67,6 +67,24 @@ class TestHFHubHelpers(unittest.TestCase):
                 _download_file("org/model", "../outside.bin", Path(cache))
             with self.assertRaises(ValueError):
                 _download_file("org/model", r"..\outside.bin", Path(cache))
+
+    @patch("neuralnode.providers.hfhub.requests.get")
+    def test_download_file_uses_huggingface_resolve_route(self, get):
+        response = MagicMock()
+        response.headers = {"Content-Length": "7"}
+        response.iter_content.return_value = [b"fixture"]
+        response.__enter__.return_value = response
+        get.return_value = response
+
+        with tempfile.TemporaryDirectory() as cache:
+            downloaded = _download_file("org/model", "weights/model file.bin", Path(cache))
+            self.assertEqual(downloaded.read_bytes(), b"fixture")
+
+        get.assert_called_once_with(
+            "https://huggingface.co/org/model/resolve/main/weights/model%20file.bin",
+            stream=True,
+            timeout=60,
+        )
 
 
 if __name__ == "__main__":

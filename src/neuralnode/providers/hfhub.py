@@ -22,13 +22,14 @@ import logging
 import os
 from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Dict, List, Optional
+from urllib.parse import quote
 
 import requests
 
 logger = logging.getLogger(__name__)
 
 HF_API = "https://huggingface.co/api"
-HF_RESOLVE = "https://huggingface.co/resolve/main"
+HF_RESOLVE = "https://huggingface.co"
 
 # Common tokenizer/auxiliary files pulled along with weight files.
 _AUX_EXTS = (
@@ -106,7 +107,7 @@ def _download_file(
     out.parent.mkdir(parents=True, exist_ok=True)
     if out.exists() and out.stat().st_size > 0:
         return out
-    url = f"{HF_RESOLVE}/{repo_id}/{path}"
+    url = f"{HF_RESOLVE}/{quote(repo_id, safe='/')}/resolve/main/{quote(path, safe='/')}"
     with requests.get(url, stream=True, timeout=60) as r:
         r.raise_for_status()
         total = int(r.headers.get("Content-Length", 0)) or None
