@@ -13,7 +13,7 @@ def get_service_status(target: str) -> dict[str, str]:
 
 def main() -> None:
     provider = nn.HorusCyberNanoProvider(
-        api_key=os.environ["HORUS_CYPER_NANO_API_KEY"],
+        api_key=os.environ["HORUS_CYBER_NANO_API_KEY"],
     )
     tools = [
         {

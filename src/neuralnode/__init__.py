@@ -884,11 +884,6 @@ if _OPENCLAW_AVAILABLE:
         "OpenClawClient",
     ]
 
-# Backward-compatible aliases (typo fix: Cyper -> Cyber)
-HorusCyperNano = HorusCyberNano
-HorusCyperNanoAPIError = HorusCyberNanoAPIError
-HorusCyperNanoProvider = HorusCyberNanoProvider
-
 
 def list_models() -> dict:
     """List all models supported by NeuralNode (TokenAI + Replica + community).

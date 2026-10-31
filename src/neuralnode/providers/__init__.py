@@ -197,8 +197,6 @@ _PROVIDER_MAP = {
     "openrouter": OpenRouterChatProvider,
     "agentrouter": AgentRouterChatProvider,
     "horus-cyber-nano": HorusCyberNanoProvider,
-    "horus-cyper-nano": HorusCyberNanoProvider,
-    "horus-cyper-nano-beta": HorusCyberNanoProvider,
     "horus-cyber-nano-beta": HorusCyberNanoProvider,
     "h-preview": HPreviewProvider,
     # Local
@@ -353,8 +351,3 @@ __all__ = [
     "load_horus_lens",
     "print_model_list",
 ]
-
-# Backward-compatible aliases (typo fix: Cyper -> Cyber)
-HorusCyperNanoProvider = HorusCyberNanoProvider
-HorusCyperNano = HorusCyberNano
-HorusCyperNanoAPIError = HorusCyberNanoAPIError

@@ -9,7 +9,7 @@ def main() -> None:
     client = nn.NeuralNode(
         provider="horus-cyber-nano",
         model="horus-cyber-nano-1.0-beta",
-        api_key=os.environ["HORUS_CYPER_NANO_API_KEY"],
+        api_key=os.environ["HORUS_CYBER_NANO_API_KEY"],
     )
 
     answer = client.chat(

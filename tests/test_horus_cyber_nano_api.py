@@ -62,20 +62,6 @@ class TestHorusCyberNanoProvider(unittest.TestCase):
         self.assertEqual(provider.api_key, "canonical-token")
         self.assertEqual(provider.base_url, "https://canonical.example/v1")
 
-    def test_provider_keeps_legacy_environment_variable_compatibility(self):
-        with patch.dict(
-            "os.environ",
-            {
-                "HORUS_CYPER_NANO_API_KEY": "legacy-token",
-                "HORUS_CYPER_NANO_BASE_URL": "https://legacy.example/v1",
-            },
-            clear=True,
-        ):
-            provider = nn.HorusCyberNanoProvider()
-
-        self.assertEqual(provider.api_key, "legacy-token")
-        self.assertEqual(provider.base_url, "https://legacy.example/v1")
-
     @patch("requests.Session.post")
     def test_chat_uses_early_access_gateway(self, post):
         post.return_value = self._successful_response()

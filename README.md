@@ -185,8 +185,6 @@ print(ai.chat("Review this code for defensive cybersecurity issues."))
 
 The client reads `HORUS_CYBER_NANO_API_KEY` automatically. Override
 `HORUS_CYBER_NANO_BASE_URL` only when TokenAI provides a different API endpoint.
-The older misspelled `HORUS_CYPER_NANO_*` environment variables remain supported
-for compatibility and should be replaced with the correctly spelled names.
 The production API base URL is `https://api.tokenai.llc/v1`. Agent Mode supports
 function tools, required or named tool choices, tool-result messages, and
 buffered SSE compatibility streams. The hosted Early Access model has a 32,768
@@ -417,11 +415,17 @@ If the `turboquant` package is not installed or the backend cannot use it, Neura
 
 ## OpenClaw Integration
 
-NeuralNode 2.2.8 includes the current OpenClaw integration. You can set up, start, and control OpenClaw directly through the framework.
+NeuralNode can expose a local OpenAI-compatible API for an OpenClaw Gateway to use. The
+`OpenClawServer` serves `/v1/models` and `/v1/chat/completions`; keep it on loopback or
+another private network and configure the OpenClaw provider to point to its `/v1` URL.
 
-The integration operates by running a local FastAPI server in the background that exposes an OpenAI-compatible API to the OpenClaw Node gateway. This server proxies LLM requests directly to NeuralNode providers, allowing seamless interaction.
-
-It also fully supports the WhatsApp API, allowing users to activate it and bind it to their phone numbers entirely via code and OpenClaw.
+`OpenClawClient` calls the Gateway's OpenAI-compatible chat endpoint. Enable
+`gateway.http.endpoints.chatCompletions` in the OpenClaw configuration before using
+`send_task`; OpenClaw disables this endpoint by default. A stable `session_id` is sent
+as the OpenAI `user` value, so the Gateway creates or resumes that conversation when
+the first message is sent. OpenClaw session status/control uses its WebSocket RPC API
+and is not implemented by this HTTP client. Messaging channels such as WhatsApp must
+be configured and authorized in OpenClaw itself.
 
 ## Links
 

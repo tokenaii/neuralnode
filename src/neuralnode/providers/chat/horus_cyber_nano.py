@@ -46,8 +46,6 @@ class HorusCyberNanoProvider(BaseLLMProvider):
     model_type = "text-to-text"
     api_key_env_var = "HORUS_CYBER_NANO_API_KEY"
     base_url_env_var = "HORUS_CYBER_NANO_BASE_URL"
-    legacy_api_key_env_var = "HORUS_CYPER_NANO_API_KEY"
-    legacy_base_url_env_var = "HORUS_CYPER_NANO_BASE_URL"
 
     @property
     def capabilities(self) -> ProviderCapabilities:
@@ -81,15 +79,8 @@ class HorusCyberNanoProvider(BaseLLMProvider):
         retry_backoff_seconds: float = 1.0,
         **kwargs: Any,
     ) -> None:
-        resolved_api_key = (
-            api_key or os.getenv(self.api_key_env_var) or os.getenv(self.legacy_api_key_env_var)
-        )
-        resolved_base_url = (
-            base_url
-            or os.getenv(self.base_url_env_var)
-            or os.getenv(self.legacy_base_url_env_var)
-            or DEFAULT_API_BASE_URL
-        )
+        resolved_api_key = api_key or os.getenv(self.api_key_env_var)
+        resolved_base_url = base_url or os.getenv(self.base_url_env_var) or DEFAULT_API_BASE_URL
         if not resolved_api_key:
             raise ValueError(
                 f"Horus Cyber Nano Access Token is required. Set {self.api_key_env_var} "

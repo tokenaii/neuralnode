@@ -251,13 +251,17 @@ class OpenClawServer:
 
 
 class OpenClawClient:
-    """REST Client to interact programmatically with a running OpenClaw Gateway."""
+    """Client for the OpenAI-compatible HTTP endpoints on an OpenClaw Gateway."""
 
     def __init__(self, gateway_url: str = "http://127.0.0.1:18789", api_key: Optional[str] = None):
         self.gateway_url = gateway_url.rstrip("/")
+        self.api_url = (
+            self.gateway_url if self.gateway_url.endswith("/v1") else f"{self.gateway_url}/v1"
+        )
         self.headers = {}
         if api_key:
             self.headers["Authorization"] = f"Bearer {api_key}"
+        self.headers["Content-Type"] = "application/json"
 
     def check_health(self) -> bool:
         """Check if OpenClaw Gateway is online."""
@@ -274,41 +278,45 @@ class OpenClawClient:
                 return False
 
     def create_session(self, session_id: str) -> Dict[str, Any]:
-        """Create or initialize an OpenClaw agent session."""
-        payload = {"sessionId": session_id}
-        response = requests.post(
-            f"{self.gateway_url}/api/sessions",
-            json=payload,
-            headers=self.headers,
-            timeout=30,
-        )
-        if response.status_code not in (200, 201):
-            raise RuntimeError(f"Failed to create session: {response.text}")
-        return response.json()
+        """Validate and return a stable conversation id for later requests.
+
+        OpenClaw's HTTP API creates a session implicitly when the first chat
+        completion is sent with ``user=session_id``; it has no REST create route.
+        """
+        if not isinstance(session_id, str) or not session_id.strip():
+            raise ValueError("session_id must be a non-empty string.")
+        return {"sessionId": session_id, "status": "pending_first_message"}
 
     def send_task(self, session_id: str, prompt: str) -> Dict[str, Any]:
-        """Send a task instruction / prompt to the OpenClaw agent session."""
-        payload = {"message": prompt}
+        """Send a prompt through OpenClaw's OpenAI-compatible chat endpoint."""
+        if not isinstance(session_id, str) or not session_id.strip():
+            raise ValueError("session_id must be a non-empty string.")
+        if not isinstance(prompt, str) or not prompt.strip():
+            raise ValueError("prompt must be a non-empty string.")
+        payload = {
+            "model": "openclaw/default",
+            "user": session_id,
+            "messages": [{"role": "user", "content": prompt}],
+        }
         response = requests.post(
-            f"{self.gateway_url}/api/sessions/{session_id}/messages",
+            f"{self.api_url}/chat/completions",
             json=payload,
             headers=self.headers,
             timeout=30,
         )
         if response.status_code != 200:
-            raise RuntimeError(f"Failed to send task: {response.text}")
+            raise RuntimeError(
+                "Failed to send task through OpenClaw's OpenAI-compatible API "
+                f"(HTTP {response.status_code}): {response.text}"
+            )
         return response.json()
 
     def get_session_status(self, session_id: str) -> Dict[str, Any]:
-        """Retrieve status details and execution logs for a session."""
-        response = requests.get(
-            f"{self.gateway_url}/api/sessions/{session_id}",
-            headers=self.headers,
-            timeout=30,
+        """Raise because OpenClaw exposes session inspection over its WS RPC API."""
+        raise NotImplementedError(
+            "OpenClaw does not expose session status through its OpenAI-compatible HTTP API. "
+            "Use the Gateway WebSocket sessions.list RPC."
         )
-        if response.status_code != 200:
-            raise RuntimeError(f"Failed to get session status: {response.text}")
-        return response.json()
 
 
 # ── OpenClaw Process Manager ─────────────────────────────────────────────────
