@@ -192,7 +192,7 @@ class OpenRouterChatProvider(OpenAICompatibleProvider):
 
     def get_custom_headers(self) -> Dict[str, str]:
         return {
-            "HTTP-Referer": "https://github.com/assemsabry/neuralnode",
+            "HTTP-Referer": "https://github.com/tokenaillc/neuralnode",
             "X-Title": "NeuralNode Framework",
         }
 

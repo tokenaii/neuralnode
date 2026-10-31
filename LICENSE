@@ -59,7 +59,7 @@ repository in:
 The acknowledgement must include substantially the following statement:
 
   "This product uses NeuralNode, a framework owned by TokenAI."
-  "Source: https://github.com/tokenaii/neuralnode"
+  "Source: https://github.com/tokenaillc/neuralnode"
 
 You must retain this License, existing copyright notices, and all attribution
 notices. You must not remove or obscure the NeuralNode or TokenAI notices.
