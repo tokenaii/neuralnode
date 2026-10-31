@@ -298,6 +298,128 @@ class NeuralSpeech:
             raise ImportError("pydub is required to transcribe MP3 files:\n  pip install pydub")
 
 
+class HuggingFaceSTT:
+    """Local speech recognition using a Hugging Face Transformers model.
+
+    The model is loaded lazily. Public models work without credentials; set
+    ``HF_TOKEN`` in the environment for gated repositories.
+    """
+
+    def __init__(
+        self,
+        model_id: str = "openai/whisper-small",
+        device: str = "auto",
+        cache_dir: Optional[str] = None,
+        local_files_only: bool = False,
+        **pipeline_options,
+    ):
+        if not model_id:
+            raise ValueError("model_id must be a non-empty Hugging Face model id or local path.")
+        self.model_id = model_id
+        self.device = device
+        self.cache_dir = cache_dir
+        self.local_files_only = local_files_only
+        self.pipeline_options = pipeline_options
+        self._pipeline = None
+
+    def _load(self):
+        if self._pipeline is not None:
+            return self._pipeline
+        try:
+            import torch
+            from transformers import pipeline
+        except ImportError as exc:
+            raise ImportError(
+                "Hugging Face speech recognition requires torch and transformers. "
+                "Install them with `pip install 'neuralnode[hf-audio]'`."
+            ) from exc
+
+        device = self.device
+        if device == "auto":
+            device = 0 if torch.cuda.is_available() else -1
+        elif device == "cpu":
+            device = -1
+        elif device.startswith("cuda"):
+            device = int(device.split(":", 1)[1]) if ":" in device else 0
+
+        model_options = {"local_files_only": self.local_files_only}
+        if self.cache_dir:
+            model_options["cache_dir"] = self.cache_dir
+        self._pipeline = pipeline(
+            "automatic-speech-recognition",
+            model=self.model_id,
+            device=device,
+            model_kwargs=model_options,
+            **self.pipeline_options,
+        )
+        return self._pipeline
+
+    def transcribe(self, audio_path: str, language: Optional[str] = None) -> str:
+        """Transcribe an audio file and return its recognized text."""
+        path = Path(audio_path)
+        if not path.is_file():
+            raise FileNotFoundError(f"Audio file not found: {audio_path}")
+
+        options = {}
+        if language:
+            language_code = language.split("-", 1)[0].lower()
+            language_names = {
+                "ar": "arabic",
+                "de": "german",
+                "en": "english",
+                "es": "spanish",
+                "fr": "french",
+                "it": "italian",
+                "ja": "japanese",
+                "ko": "korean",
+                "pt": "portuguese",
+                "ru": "russian",
+                "zh": "chinese",
+            }
+            options["language"] = language_names.get(language_code, language)
+        try:
+            import numpy as np
+            import soundfile as sf
+        except ImportError as exc:
+            raise ImportError(
+                "Hugging Face speech recognition requires soundfile. "
+                "Install it with `pip install 'neuralnode[hf-audio]'`."
+            ) from exc
+
+        audio, sample_rate = sf.read(str(path), dtype="float32", always_2d=False)
+        audio = np.asarray(audio)
+        if audio.ndim == 2:
+            audio = audio.mean(axis=1)
+        if audio.ndim != 1 or audio.size == 0:
+            raise ValueError("The audio file must contain a non-empty mono or stereo waveform.")
+
+        asr_pipeline = self._load()
+        expected_rate = asr_pipeline.feature_extractor.sampling_rate
+        if sample_rate != expected_rate:
+            try:
+                from math import gcd
+                from scipy.signal import resample_poly
+            except ImportError as exc:
+                raise ImportError(
+                    "Resampling audio requires scipy. "
+                    "Install it with `pip install 'neuralnode[hf-audio]'`."
+                ) from exc
+            common = gcd(int(sample_rate), int(expected_rate))
+            audio = resample_poly(audio, expected_rate // common, sample_rate // common)
+
+        result = asr_pipeline(
+            {"array": audio, "sampling_rate": expected_rate},
+            generate_kwargs=options or None,
+        )
+        if isinstance(result, dict):
+            text = result.get("text")
+        else:
+            text = result
+        if not isinstance(text, str):
+            raise ValueError("The Hugging Face ASR pipeline did not return text.")
+        return text
+
+
 class HTTPSTT:
     """Speech-to-text adapter for HTTP services accepting raw audio bytes.
 
@@ -350,6 +472,7 @@ class HTTPSTT:
 
 __all__ = [
     "NeuralSpeech",
+    "HuggingFaceSTT",
     "HTTPSTT",
     "SUPPORTED_LANGUAGES",
     "SPEECH_LANGUAGES",

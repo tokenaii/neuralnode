@@ -135,6 +135,12 @@ speech = [
     "SpeechRecognition>=3.10.0",
     "pydub>=0.25.1",
 ]
+hf-audio = [
+    "torch>=2.0.0",
+    "transformers>=4.35.0",
+    "soundfile>=0.12.0",
+    "scipy>=1.11.0",
+]
 
 replica = [
     "edge-tts>=6.1.0",

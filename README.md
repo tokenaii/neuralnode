@@ -120,6 +120,26 @@ print(turn.transcript)
 print(turn.response)
 ```
 
+For local Hugging Face speech models, install `pip install "neuralnode[hf-audio]"`.
+The default models are `openai/whisper-small` for transcription and
+`facebook/mms-tts-eng` for English speech generation. Pass another compatible
+public or accessible Hugging Face model ID to either adapter.
+
+```python
+from neuralnode.speech import HuggingFaceSTT
+from neuralnode.tts import HuggingFaceTTS
+
+stt = HuggingFaceSTT("openai/whisper-small")
+text = stt.transcribe("question.wav", language="en-US")
+
+tts = HuggingFaceTTS("facebook/mms-tts-eng")
+tts.speak(text, output="recognized-speech.wav")
+```
+
+These adapters load models lazily and use CPU unless CUDA is available. Public
+models do not need a token; gated models require `HF_TOKEN` set in the process
+environment. `HuggingFaceTTS.speak()` writes mono PCM WAV output.
+
 ## Documentation
 
 - [Model API deployment](docs/model_api.md)

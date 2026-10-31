@@ -1,13 +1,14 @@
 import sys
 import tempfile
+import types
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
 sys.path.insert(0, "src")
 
-from neuralnode.speech import HTTPSTT
-from neuralnode.tts import HTTPTTS
+from neuralnode.speech import HTTPSTT, HuggingFaceSTT
+from neuralnode.tts import HTTPTTS, HuggingFaceTTS
 from neuralnode.voice import VoiceAgent
 
 
@@ -78,6 +79,67 @@ class TestVoiceAgent(unittest.TestCase):
 
         self.assertEqual(result, str(output.resolve()))
         self.assertEqual(post.call_args.kwargs["json"]["voice"], "sara")
+
+    def test_huggingface_stt_transcribes_a_local_file(self):
+        pipeline = Mock()
+        asr = Mock(return_value={"text": "recognized words"})
+        pipeline.return_value = asr
+        pipeline.return_value.feature_extractor.sampling_rate = 16000
+        fake_torch = types.ModuleType("torch")
+        fake_torch.cuda = types.SimpleNamespace(is_available=lambda: False)
+        fake_transformers = types.ModuleType("transformers")
+        fake_transformers.pipeline = pipeline
+        import numpy as np
+
+        fake_soundfile = types.ModuleType("soundfile")
+        fake_soundfile.read = Mock(return_value=(np.array([0.0, 0.2], dtype=np.float32), 16000))
+        with tempfile.TemporaryDirectory() as directory:
+            audio = Path(directory) / "speech.wav"
+            audio.write_bytes(b"audio")
+            with patch.dict(
+                sys.modules,
+                {
+                    "torch": fake_torch,
+                    "transformers": fake_transformers,
+                    "soundfile": fake_soundfile,
+                },
+            ):
+                result = HuggingFaceSTT(model_id="openai/whisper-tiny").transcribe(
+                    str(audio), language="en-US"
+                )
+
+        self.assertEqual(result, "recognized words")
+        pipeline.assert_called_once()
+        self.assertEqual(pipeline.call_args.args[0], "automatic-speech-recognition")
+        self.assertEqual(asr.call_args.args[0]["sampling_rate"], 16000)
+        self.assertEqual(asr.call_args.kwargs["generate_kwargs"], {"language": "english"})
+
+    def test_huggingface_tts_writes_pcm_wave(self):
+        import numpy as np
+
+        pipeline = Mock()
+        synthesizer = Mock(
+            return_value={"audio": np.array([0.0, 0.5, -0.5]), "sampling_rate": 16000}
+        )
+        pipeline.return_value = synthesizer
+        fake_torch = types.ModuleType("torch")
+        fake_torch.cuda = types.SimpleNamespace(is_available=lambda: False)
+        fake_transformers = types.ModuleType("transformers")
+        fake_transformers.pipeline = pipeline
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "nested" / "reply.wav"
+            with patch.dict(sys.modules, {"torch": fake_torch, "transformers": fake_transformers}):
+                result = HuggingFaceTTS(model_id="facebook/mms-tts-eng").speak("hello", str(output))
+            self.assertEqual(result, str(output.resolve()))
+            self.assertTrue(output.exists())
+            import wave
+
+            with wave.open(str(output), "rb") as wav_file:
+                self.assertEqual(wav_file.getframerate(), 16000)
+                self.assertEqual(wav_file.getnframes(), 3)
+
+        self.assertEqual(pipeline.call_args.args[0], "text-to-audio")
+        self.assertEqual(synthesizer.call_args.args[0], "hello")
 
 
 if __name__ == "__main__":

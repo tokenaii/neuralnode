@@ -337,8 +337,106 @@ class HTTPTTS:
         return str(path.resolve())
 
 
+class HuggingFaceTTS:
+    """Local text-to-speech using a Hugging Face Transformers model.
+
+    Supports Transformers ``text-to-audio`` models and writes mono PCM WAV
+    output without requiring an additional audio-writing dependency.
+    """
+
+    def __init__(
+        self,
+        model_id: str = "facebook/mms-tts-eng",
+        device: str = "auto",
+        cache_dir: Optional[str] = None,
+        local_files_only: bool = False,
+        **pipeline_options,
+    ):
+        if not model_id:
+            raise ValueError("model_id must be a non-empty Hugging Face model id or local path.")
+        self.model_id = model_id
+        self.device = device
+        self.cache_dir = cache_dir
+        self.local_files_only = local_files_only
+        self.pipeline_options = pipeline_options
+        self._pipeline = None
+
+    def _load(self):
+        if self._pipeline is not None:
+            return self._pipeline
+        try:
+            import torch
+            from transformers import pipeline
+        except ImportError as exc:
+            raise ImportError(
+                "Hugging Face text-to-speech requires torch and transformers. "
+                "Install them with `pip install 'neuralnode[hf-audio]'`."
+            ) from exc
+
+        device = self.device
+        if device == "auto":
+            device = 0 if torch.cuda.is_available() else -1
+        elif device == "cpu":
+            device = -1
+        elif device.startswith("cuda"):
+            device = int(device.split(":", 1)[1]) if ":" in device else 0
+
+        model_options = {"local_files_only": self.local_files_only}
+        if self.cache_dir:
+            model_options["cache_dir"] = self.cache_dir
+        self._pipeline = pipeline(
+            "text-to-audio",
+            model=self.model_id,
+            device=device,
+            model_kwargs=model_options,
+            **self.pipeline_options,
+        )
+        return self._pipeline
+
+    def speak(self, text: str, output: str = "output.wav", **generation_options) -> str:
+        """Generate speech and save the waveform as a PCM WAV file."""
+        if not isinstance(text, str) or not text.strip():
+            raise ValueError("text must be a non-empty string.")
+
+        result = self._load()(text, **generation_options)
+        if not isinstance(result, dict) or result.get("audio") is None:
+            raise ValueError("The Hugging Face TTS pipeline did not return audio.")
+
+        import numpy as np
+
+        audio = np.asarray(result["audio"])
+        if audio.size == 0:
+            raise ValueError("The Hugging Face TTS pipeline returned an empty waveform.")
+        audio = np.squeeze(audio)
+        if audio.ndim != 1:
+            raise ValueError("Only mono audio output is supported by this adapter.")
+        if np.issubdtype(audio.dtype, np.integer):
+            pcm = audio.astype(np.int16, copy=False)
+        else:
+            pcm = (np.clip(audio, -1.0, 1.0) * 32767).astype(np.int16)
+
+        sample_rate = result.get("sampling_rate")
+        if not isinstance(sample_rate, int) or sample_rate <= 0:
+            config = getattr(getattr(self._pipeline, "model", None), "config", None)
+            sample_rate = getattr(config, "sampling_rate", None)
+        if not isinstance(sample_rate, int) or sample_rate <= 0:
+            raise ValueError("The Hugging Face TTS pipeline did not provide a valid sample rate.")
+
+        import wave
+
+        path = Path(output)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with wave.open(str(path), "wb") as wav_file:
+            wav_file.setnchannels(1)
+            wav_file.setsampwidth(2)
+            wav_file.setframerate(sample_rate)
+            wav_file.writeframes(pcm.tobytes())
+        return str(path.resolve())
+
+
 __all__ = [
     "NeuralTTS",
+    "HuggingFaceTTS",
     "HTTPTTS",
     "list_voices",
     "tts_list_voices",
