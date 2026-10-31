@@ -358,7 +358,11 @@ The system will execute the tool and return the result."""
                                 Message(
                                     role=MessageRole.TOOL,
                                     content=result.content,
-                                    metadata={"tool_name": tc.name, "success": result.success},
+                                    metadata={
+                                        "tool_name": tc.name,
+                                        "tool_call_id": tc.call_id,
+                                        "success": result.success,
+                                    },
                                 )
                             )
                         else:
@@ -366,14 +370,56 @@ The system will execute the tool and return the result."""
                                 Message(
                                     role=MessageRole.TOOL,
                                     content=f"Error: Tool '{tc.name}' not found",
-                                    metadata={"tool_name": tc.name, "success": False},
+                                    metadata={
+                                        "tool_name": tc.name,
+                                        "tool_call_id": tc.call_id,
+                                        "success": False,
+                                    },
                                 )
                             )
 
                     # Get next response after tool results
                     continue
 
-                # No tool calls, return the response
+                # Some OpenAI-compatible local models advertise native tool
+                # support but emit the documented text protocol instead.
+                action_match = re.search(
+                    r"ACTION:\s*(\w+)\s*PARAMETERS:\s*(\{[^}]*\})",
+                    response.content,
+                    re.IGNORECASE | re.DOTALL,
+                )
+                if action_match:
+                    try:
+                        params = json.loads(action_match.group(2))
+                    except json.JSONDecodeError:
+                        self.messages.append(Message.assistant(response.content))
+                        self.messages.append(
+                            Message.user("Invalid tool parameters format. Please use valid JSON.")
+                        )
+                        continue
+
+                    tool_name = action_match.group(1)
+                    self.messages.append(Message.assistant(response.content))
+                    if tool_name in self.tools:
+                        result = self.tools[tool_name].execute(**params)
+                        self.messages.append(
+                            Message(
+                                role=MessageRole.TOOL,
+                                content=result.content,
+                                metadata={"tool_name": tool_name, "success": result.success},
+                            )
+                        )
+                    else:
+                        self.messages.append(
+                            Message(
+                                role=MessageRole.TOOL,
+                                content=f"Tool '{tool_name}' not found",
+                                metadata={"tool_name": tool_name, "success": False},
+                            )
+                        )
+                    continue
+
+                # No structured or text-protocol tool call; finish normally.
                 return response.content
 
             else:

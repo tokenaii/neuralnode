@@ -63,6 +63,23 @@ class OpenAICompatibleProvider(BaseLLMProvider):
             images = metadata.get("images") or []
             image_url = metadata.get("image_url")
 
+            if role == "assistant" and metadata.get("tool_calls"):
+                tool_calls = []
+                for call in metadata["tool_calls"]:
+                    arguments = call.get("arguments") or {}
+                    tool_calls.append(
+                        {
+                            "id": call.get("call_id") or call.get("id"),
+                            "type": "function",
+                            "function": {
+                                "name": call.get("name", ""),
+                                "arguments": json.dumps(arguments),
+                            },
+                        }
+                    )
+                payload.append({"role": role, "content": content or None, "tool_calls": tool_calls})
+                continue
+
             if images or image_url:
                 content_parts = [{"type": "text", "text": content}]
                 media_type = metadata.get("image_media_type", "image/jpeg")
@@ -77,7 +94,13 @@ class OpenAICompatibleProvider(BaseLLMProvider):
                     content_parts.append({"type": "image_url", "image_url": {"url": image_url}})
                 content = content_parts
 
-            payload.append({"role": role, "content": content})
+            item = {"role": role, "content": content}
+            if role == "tool":
+                if metadata.get("tool_call_id"):
+                    item["tool_call_id"] = metadata["tool_call_id"]
+                if metadata.get("tool_name"):
+                    item["name"] = metadata["tool_name"]
+            payload.append(item)
         return payload
 
     @staticmethod

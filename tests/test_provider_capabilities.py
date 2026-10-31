@@ -1,7 +1,7 @@
 import unittest
 
 from neuralnode.providers.chat.openai import OpenAICompatibleProvider
-from neuralnode.core import BaseTool, ParameterSpec, ToolResult
+from neuralnode.core import BaseTool, Message, MessageRole, ParameterSpec, ToolResult
 
 
 class EchoTool(BaseTool):
@@ -47,6 +47,42 @@ class TestProviderCapabilities(unittest.TestCase):
         self.assertEqual(
             OpenAICompatibleProvider._normalize_tool_calls(tool_calls),
             [{"name": "echo", "arguments": {"text": "hello"}, "call_id": "call-1"}],
+        )
+
+    def test_messages_preserve_native_tool_call_protocol(self):
+        messages = [
+            Message(
+                role=MessageRole.ASSISTANT,
+                content="",
+                metadata={
+                    "tool_calls": [
+                        {"name": "echo", "arguments": {"text": "hello"}, "call_id": "call-1"}
+                    ]
+                },
+            ),
+            Message(
+                role=MessageRole.TOOL,
+                content="hello",
+                metadata={"tool_name": "echo", "tool_call_id": "call-1"},
+            ),
+        ]
+
+        self.assertEqual(
+            OpenAICompatibleProvider._payload_messages(messages),
+            [
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        {
+                            "id": "call-1",
+                            "type": "function",
+                            "function": {"name": "echo", "arguments": '{"text": "hello"}'},
+                        }
+                    ],
+                },
+                {"role": "tool", "content": "hello", "tool_call_id": "call-1", "name": "echo"},
+            ],
         )
 
 
