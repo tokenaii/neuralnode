@@ -145,9 +145,9 @@ ai = nn.NeuralNode(
 print(ai.chat("Say hello."))
 ```
 
-### Horus Cyber Nano 1.0 BETA Early Access API
+### Horus Cyber Nano 1.0 Early Access API
 
-Horus Cyber Nano 1.0 BETA is a Text-to-Text model. Approved Early Access users can call the hosted model through the same
+Horus Cyber Nano 1.0 is a Text-to-Text model. The hosted API is currently in Early Access. Approved users can call it through the same
 `NeuralNode` interface. Each Access Token has its own server-enforced RPM limit,
 and API conversations are retained by TokenAI under the Early Access terms.
 
@@ -163,8 +163,10 @@ ai = nn.NeuralNode(
 print(ai.chat("Review this code for defensive cybersecurity issues."))
 ```
 
-The client reads `HORUS_CYPER_NANO_API_KEY` automatically. Override
-`HORUS_CYPER_NANO_BASE_URL` only when TokenAI provides a different API endpoint.
+The client reads `HORUS_CYBER_NANO_API_KEY` automatically. Override
+`HORUS_CYBER_NANO_BASE_URL` only when TokenAI provides a different API endpoint.
+The older misspelled `HORUS_CYPER_NANO_*` environment variables remain supported
+for compatibility and should be replaced with the correctly spelled names.
 The production API base URL is `https://api.tokenai.llc/v1`. Agent Mode supports
 function tools, required or named tool choices, tool-result messages, and
 buffered SSE compatibility streams. The hosted Early Access model has a 32,768

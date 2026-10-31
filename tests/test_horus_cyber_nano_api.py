@@ -42,10 +42,39 @@ class TestHorusCyberNanoProvider(unittest.TestCase):
         self.assertFalse(provider.capabilities.vision)
 
     def test_access_token_is_required(self):
-        with patch.dict("os.environ", {}, clear=True), self.assertRaisesRegex(
-            ValueError, "Access Token is required"
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            self.assertRaisesRegex(ValueError, "Access Token is required"),
         ):
             nn.HorusCyberNanoProvider()
+
+    def test_provider_reads_canonical_environment_variables(self):
+        with patch.dict(
+            "os.environ",
+            {
+                "HORUS_CYBER_NANO_API_KEY": "canonical-token",
+                "HORUS_CYBER_NANO_BASE_URL": "https://canonical.example/v1",
+            },
+            clear=True,
+        ):
+            provider = nn.HorusCyberNanoProvider()
+
+        self.assertEqual(provider.api_key, "canonical-token")
+        self.assertEqual(provider.base_url, "https://canonical.example/v1")
+
+    def test_provider_keeps_legacy_environment_variable_compatibility(self):
+        with patch.dict(
+            "os.environ",
+            {
+                "HORUS_CYPER_NANO_API_KEY": "legacy-token",
+                "HORUS_CYPER_NANO_BASE_URL": "https://legacy.example/v1",
+            },
+            clear=True,
+        ):
+            provider = nn.HorusCyberNanoProvider()
+
+        self.assertEqual(provider.api_key, "legacy-token")
+        self.assertEqual(provider.base_url, "https://legacy.example/v1")
 
     @patch("requests.Session.post")
     def test_chat_uses_early_access_gateway(self, post):
@@ -153,19 +182,25 @@ class TestHorusCyberNanoProvider(unittest.TestCase):
         response.ok = True
         response.headers = {"X-Request-ID": "req-stream"}
         response.iter_lines.return_value = [
-            "data: " + json.dumps({
-                "model": "horus-cyber-nano-1.0-beta",
-                "choices": [
-                    {
-                        "delta": {"role": "assistant", "content": "Ready"},
-                        "finish_reason": None,
-                    }
-                ],
-            }),
-            "data: " + json.dumps({
-                "conversation_id": "8ddedee4-594d-48f2-a72e-a0d942ce27fe",
-                "choices": [{"delta": {}, "finish_reason": "stop"}],
-            }),
+            "data: "
+            + json.dumps(
+                {
+                    "model": "horus-cyber-nano-1.0-beta",
+                    "choices": [
+                        {
+                            "delta": {"role": "assistant", "content": "Ready"},
+                            "finish_reason": None,
+                        }
+                    ],
+                }
+            ),
+            "data: "
+            + json.dumps(
+                {
+                    "conversation_id": "8ddedee4-594d-48f2-a72e-a0d942ce27fe",
+                    "choices": [{"delta": {}, "finish_reason": "stop"}],
+                }
+            ),
             "data: [DONE]",
         ]
         post.return_value = response
