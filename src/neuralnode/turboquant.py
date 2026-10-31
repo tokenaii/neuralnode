@@ -53,25 +53,30 @@ try:
     import torch
 
     TORCH_AVAILABLE = True
-except ImportError:
+except Exception as exc:
+    # Optional ML runtimes can be installed but unusable when a shared library
+    # is missing. Keep importing NeuralNode's API and remote providers usable.
     TORCH_AVAILABLE = False
     torch = None
+    logger.warning("PyTorch is unavailable; TurboQuant is disabled: %s", exc)
 
 try:
     from transformers import DynamicCache
 
     TRANSFORMERS_CACHE_AVAILABLE = True
-except ImportError:
+except Exception as exc:
     TRANSFORMERS_CACHE_AVAILABLE = False
     DynamicCache = None
+    logger.warning("Transformers cache support is unavailable: %s", exc)
 
 try:
     import bitsandbytes as bnb
 
     BNB_AVAILABLE = True
-except ImportError:
+except Exception as exc:
     BNB_AVAILABLE = False
     bnb = None
+    logger.warning("bitsandbytes is unavailable; quantization features are disabled: %s", exc)
 
 
 # TurboQuant is available if we have torch
