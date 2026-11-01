@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="media/neuralnode.png" alt="NeuralNode — Connect models. Build AI." width="720">
+    <img src="https://raw.githubusercontent.com/tokenaillc/neuralnode/v2.2.8/media/neuralnode.png" alt="NeuralNode — Connect models. Build AI." width="720">
 </p>
 
 <p align="center">
@@ -17,6 +17,32 @@ NeuralNode is a Python framework for connecting cloud and local AI models to
 one consistent interface. Build applications with model providers, agents,
 tools, memory, RAG, embeddings, vector stores, and integrations without
 rewriting your application around a single provider.
+
+## What's new in 2.2.8
+
+NeuralNode 2.2.8 expands the framework's local-model and multimodal building
+blocks while making the public release safer to build and publish.
+
+- Added Hugging Face authentication support for public, private, and gated
+  model repositories through the `HF_TOKEN` environment variable or an
+  explicit token argument.
+- Added local Hugging Face speech adapters for speech-to-text and text-to-speech,
+  including lazy loading, automatic CPU/CUDA selection, configurable model IDs,
+  language handling, and WAV output.
+- Added a sequential `VoiceAgent` workflow that connects audio transcription,
+  an agent turn, and speech synthesis for file-based and push-to-talk use cases.
+- Added local vision-language input and Diffusers-compatible text-to-image
+  generation through dedicated Hugging Face model loaders.
+- Improved Horus model loading, provider identity, deterministic generation,
+  optional runtime imports, and model repository download behavior.
+- Improved provider-backed agent tool calling, including textual actions and
+  tool-result handling.
+- Added and aligned OpenClaw integration behavior, including safer local API
+  access and test coverage that does not require optional HTTP test packages.
+- Hardened the release pipeline with source and wheel build validation,
+  isolated build output, and trusted publishing to PyPI through GitHub Actions.
+
+For the complete release record, see [CHANGELOG.md](CHANGELOG.md).
 
 ## Why NeuralNode?
 
@@ -148,49 +174,6 @@ environment. `HuggingFaceTTS.speak()` writes mono PCM WAV output.
 - [License and ownership](LICENSE)
 
 ## Horus
-
-### H-Preview Model API
-
-NeuralNode includes an OpenAI-compatible API gateway for serving H-Preview through a vLLM-compatible server on another machine. The gateway creates `nn-` access tokens with `Basic` (RPM controlled) and `Elite` (no application RPM accounting) tiers, plus one owner admin token for managing them. See [docs/model_api.md](docs/model_api.md) for deployment and Python client examples.
-
-```python
-import neuralnode as nn
-
-ai = nn.NeuralNode(
-    provider="h-preview",
-    model="h-preview",
-    api_key="nn-...",
-    base_url="https://api.example.com/v1",
-)
-print(ai.chat("Say hello."))
-```
-
-### Horus Cyber Nano 1.0 Early Access API
-
-Horus Cyber Nano 1.0 is a Text-to-Text model. The hosted API is currently in Early Access. Approved users can call it through the same
-`NeuralNode` interface. Each Access Token has its own server-enforced RPM limit,
-and API conversations are retained by TokenAI under the Early Access terms.
-
-```python
-import neuralnode as nn
-
-ai = nn.NeuralNode(
-    provider="horus-cyber-nano",
-    model="horus-cyber-nano-1.0-beta",
-    api_key="horusNN-XXXXXXXXXXXXXXXX",
-)
-
-print(ai.chat("Review this code for defensive cybersecurity issues."))
-```
-
-The client reads `HORUS_CYBER_NANO_API_KEY` automatically. Override
-`HORUS_CYBER_NANO_BASE_URL` only when TokenAI provides a different API endpoint.
-The production API base URL is `https://api.tokenai.llc/v1`. Agent Mode supports
-function tools, required or named tool choices, tool-result messages, and
-buffered SSE compatibility streams. The hosted Early Access model has a 32,768
-token context. See `examples/horus_cyber_nano_agent_mode.py` for the complete
-tool-call round trip. NeuralNode retries temporary HTTP 429, 502, and 503
-responses up to two times by default and respects the API Retry-After header.
 
 Locally loaded Horus models use:
 - unified chat template: `horus_unified`
@@ -409,7 +392,7 @@ If the `turboquant` package is not installed or the backend cannot use it, Neura
 
 ## Notes
 
-- OpenAI-compatible providers are fully supported (OpenAI, OpenRouter, AgentRouter, H-Preview, etc.).
+- OpenAI-compatible providers are fully supported (OpenAI, OpenRouter, and AgentRouter).
 - GGUF Horus models require `llama-cpp-python`.
 - Horus downloads from Hugging Face require `huggingface_hub`.
 
@@ -432,8 +415,8 @@ be configured and authorized in OpenClaw itself.
 
 ## Links
 
-- **TokenAI**: [https://tokenai.cloud/](https://tokenai.cloud/)
-- **NeuralNode**: [https://neuralnode.tokenai.cloud/](https://neuralnode.tokenai.cloud/)
+- **TokenAI**: [https://tokenai.llc/](https://tokenai.llc/)
+- **NeuralNode**: [https://tokenai.llc/](https://tokenai.llc/)
 
 ## License and ownership
 

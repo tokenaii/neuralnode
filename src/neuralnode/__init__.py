@@ -88,10 +88,6 @@ from .providers import (
     MistralProvider,
     CohereProvider,
     DeepSeekProvider,
-    HorusCyberNano,
-    HorusCyberNanoAPIError,
-    HorusCyberNanoProvider,
-    HPreviewProvider,
     LlamaCppProvider,
     TransformersProvider,
     UniversalLocalProvider,
@@ -287,14 +283,6 @@ except ImportError:
 # Logging helper
 from .utils.logger import get_logger, setup_logging
 from .utils.dependencies import ensure_feature_dependencies
-from .api import (
-    APIKeyStore,
-    H_PREVIEW_HF_REPO,
-    H_PREVIEW_MODEL,
-    create_api_app,
-    generate_admin_token,
-    run_api_server,
-)
 
 # ── Skill → tools mapping ─────────────────────────────────────────────────────
 
@@ -737,16 +725,6 @@ __all__ = [
     "MistralProvider",
     "CohereProvider",
     "DeepSeekProvider",
-    "HorusCyberNano",
-    "HorusCyberNanoAPIError",
-    "HorusCyberNanoProvider",
-    "HPreviewProvider",
-    "APIKeyStore",
-    "H_PREVIEW_HF_REPO",
-    "H_PREVIEW_MODEL",
-    "create_api_app",
-    "generate_admin_token",
-    "run_api_server",
     "LlamaCppProvider",
     "TransformersProvider",
     "UniversalLocalProvider",

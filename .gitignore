@@ -23,7 +23,6 @@ env/
 !**/.env.example
 
 # Temp / outputs
-temp_header.gguf
 outputs/
 .tmp_*
 *.gguf.tmp

@@ -43,10 +43,6 @@ from .chat import (
     OpenAIChatProvider,
     OpenRouterChatProvider,
     AgentRouterChatProvider,
-    HorusCyberNanoProvider,
-    HorusCyberNano,
-    HorusCyberNanoAPIError,
-    HPreviewProvider,
 )
 
 # Aliases for backward compatibility
@@ -196,9 +192,6 @@ _PROVIDER_MAP = {
     "openai": OpenAIChatProvider,
     "openrouter": OpenRouterChatProvider,
     "agentrouter": AgentRouterChatProvider,
-    "horus-cyber-nano": HorusCyberNanoProvider,
-    "horus-cyber-nano-beta": HorusCyberNanoProvider,
-    "h-preview": HPreviewProvider,
     # Local
     "ollama": OllamaProvider,
     "llamacpp": LlamaCppProvider,
@@ -271,10 +264,6 @@ __all__ = [
     "OpenAIChatProvider",
     "OpenRouterChatProvider",
     "AgentRouterChatProvider",
-    "HorusCyberNanoProvider",
-    "HorusCyberNano",
-    "HorusCyberNanoAPIError",
-    "HPreviewProvider",
     # Aliases
     "AnthropicProvider",
     "GoogleProvider",

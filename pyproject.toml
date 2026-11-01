@@ -174,10 +174,6 @@ openclaw = [
     "fastapi>=0.110.0",
     "uvicorn>=0.27.0",
 ]
-api = [
-    "fastapi>=0.110.0",
-    "uvicorn>=0.27.0",
-]
 
 # All features
 all = [
@@ -228,14 +224,12 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://assem.cloud/"
+Homepage = "https://tokenai.llc/"
+NeuralNode = "https://tokenai.llc/"
 Documentation = "https://neuralnode.readthedocs.io"
 Repository = "https://github.com/tokenaillc/neuralnode"
 Issues = "https://github.com/tokenaillc/neuralnode/issues"
 Changelog = "https://github.com/tokenaillc/neuralnode/blob/main/CHANGELOG.md"
-
-[project.scripts]
-neuralnode-api = "neuralnode.api:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/neuralnode"]
@@ -251,11 +245,9 @@ exclude = [
     "/.tmp_*",
     "/actionlint.zip",
     "/actionlint_bin",
-    "/deployment",
     "/dist",
     "/dist_*",
     "/outputs",
-    "/temp_header.gguf",
     "**/__pycache__/**",
     "**/*.pyc",
 ]
