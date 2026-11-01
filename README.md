@@ -1,497 +1,301 @@
-<p align="center">
-    <img src="https://raw.githubusercontent.com/tokenaillc/neuralnode/v2.2.9/media/neuralnode.png" alt="NeuralNode — Connect models. Build AI." width="720">
-</p>
+# NeuralNode
 
-<p align="center">
-  <a href="https://pypi.org/project/neuralnode/"><img src="https://img.shields.io/pypi/v/neuralnode.svg?style=flat-square" alt="PyPI version"></a>
-  <a href="https://pypi.org/project/neuralnode/"><img src="https://img.shields.io/pypi/pyversions/neuralnode.svg?style=flat-square" alt="Python versions"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Source--Available-172033.svg?style=flat-square" alt="Source-Available License"></a>
-  <a href="https://github.com/tokenaillc/neuralnode/releases"><img src="https://img.shields.io/github/v/release/tokenaillc/neuralnode?display_name=tag&sort=semver&style=flat-square" alt="Latest release"></a>
-</p>
+**NeuralNode 2.2.9** is a Python framework for connecting cloud and local AI models through one provider interface. It includes chat, streaming, vision, embeddings, agents, memory, RAG, speech, Hugging Face models, Horus models, Ollama, OpenClaw, and optional integrations.
 
-<p align="center"><strong>Connect models. Build AI.</strong></p>
+NeuralNode is developed and fully owned by **TokenAI**. It is distributed under the TokenAI Source-Available License described at the end of this file.
 
-<p align="center">NeuralNode <code>v2.2.9</code></p>
-
-NeuralNode is a Python framework for connecting cloud and local AI models to
-one consistent interface. Build applications with model providers, agents,
-tools, memory, RAG, embeddings, vector stores, and integrations without
-rewriting your application around a single provider.
-
-## What's New in 2.2.9
-
-NeuralNode 2.2.9 focuses on reliable local-model runtimes, safer gateway
-integration, and a cleaner maintained core.
-
-- Removed the deprecated WhatsApp/Twilio integration and its legacy gateway
-  artifacts.
-- Upgraded Ollama to the native `/api/chat` protocol with role-preserving
-  messages, streaming, structured output, and tool calls.
-- Added native Ollama reasoning control with `thinking=True` or
-  `thinking=False`, with reasoning traces preserved in response metadata.
-- Updated Ollama embeddings to the batch `/api/embed` endpoint with a legacy
-  compatibility fallback.
-- Improved OpenClaw configuration, loopback-only binding, token
-  authentication, OpenAI-compatible chat completions, and non-streaming
-  provider fallback behavior.
-- Validated the NeuralNode → OpenClaw → local Qwen/llama.cpp workflow on AWS.
-- Added release-readiness validation for wheels, source distributions, CI,
-  metadata, and supported Python versions.
-
-For the complete release record, see [CHANGELOG.md](CHANGELOG.md).
-
-## Coming Soon Models
-
-The following models are coming soon to NeuralNode:
-
-- `replica-preview-0.6B` — TTS model.
-- `horus-cyber-nano-1.2` — Text model with vision capabilities.
-
-## What's new in 2.2.8
-
-NeuralNode 2.2.8 expands the framework's local-model and multimodal building
-blocks while making the public release safer to build and publish.
-
-- Added Hugging Face authentication support for public, private, and gated
-  model repositories through the `HF_TOKEN` environment variable or an
-  explicit token argument.
-- Added local Hugging Face speech adapters for speech-to-text and text-to-speech,
-  including lazy loading, automatic CPU/CUDA selection, configurable model IDs,
-  language handling, and WAV output.
-- Added a sequential `VoiceAgent` workflow that connects audio transcription,
-  an agent turn, and speech synthesis for file-based and push-to-talk use cases.
-- Added local vision-language input and Diffusers-compatible text-to-image
-  generation through dedicated Hugging Face model loaders.
-- Improved Horus model loading, provider identity, deterministic generation,
-  optional runtime imports, and model repository download behavior.
-- Improved provider-backed agent tool calling, including textual actions and
-  tool-result handling.
-- Added and aligned OpenClaw integration behavior, including safer local API
-  access and test coverage that does not require optional HTTP test packages.
-- Hardened the release pipeline with source and wheel build validation,
-  isolated build output, and trusted publishing to PyPI through GitHub Actions.
-
-## Why NeuralNode?
-
-- **One interface for many models** — connect cloud APIs, local runtimes, and
-  custom providers through a unified interface.
-- **Production building blocks** — agents, tool calling, memory, RAG,
-  embeddings, vector stores, and API gateways.
-- **Local and hosted execution** — use Transformers, Ollama, llama.cpp, vLLM,
-  Horus, and other supported runtimes.
-- **Composable integrations** — connect applications to Telegram, Slack,
-  Discord, OpenClaw, speech, vision, and text-to-speech workflows.
-
-## Quickstart
+## Install
 
 ```bash
 pip install neuralnode
 ```
 
+Install only the feature set you need:
+
+```bash
+pip install "neuralnode[ollama]"      # Ollama client support
+pip install "neuralnode[local]"       # local Transformers/GGUF models
+pip install "neuralnode[horus]"       # Horus local models
+pip install "neuralnode[replica]"     # Replica TTS adapter
+pip install "neuralnode[telegram]"    # Telegram integration
+pip install "neuralnode[openclaw]"    # OpenClaw gateway integration
+pip install "neuralnode[all]"         # all published optional features
+```
+
+The base package stays lightweight. Large ML runtimes, vector stores, speech libraries, and provider SDKs are optional.
+
+## Quick start
+
 ```python
 import neuralnode as nn
 
+ai = nn.NeuralNode(provider="groq", model="llama-3.1-8b-instant")
+print(ai.chat("Explain embeddings in one paragraph."))
+```
+
+Set the provider API key before running:
+
+```powershell
+$env:GROQ_API_KEY="your-key"
+```
+
+## Do this → run this
+
+### See supported providers
+
+```python
+import neuralnode as nn
+
+print(nn.get_available_providers())
+print(nn.get_provider_info("ollama"))
+```
+
+The registry is the source of truth for the installed package. Optional provider SDKs may still be required when creating a provider.
+
+### List the built-in model catalog
+
+```python
+import neuralnode as nn
+
+for model_id, info in nn.list_models().items():
+    print(model_id, info)
+```
+
+### Chat with a local Ollama model
+
+Start Ollama and pull a model:
+
+```bash
+ollama serve
+ollama pull qwen3
+```
+
+Then:
+
+```python
+import neuralnode as nn
+
+ai = nn.NeuralNode(provider="ollama", model="qwen3")
+print(ai.chat("Give me three names for a robotics project."))
+```
+
+For a remote/containerized Ollama server:
+
+```python
 ai = nn.NeuralNode(
-    provider="groq",
-    model="llama-3.1-70b-versatile",
-    api_key="YOUR_GROQ_API_KEY",
-)
-
-print(ai.chat("Hello from NeuralNode"))
-```
-
-## Install optional integrations
-
-```bash
-pip install "neuralnode[all]"
-pip install "neuralnode[horus]"
-pip install "neuralnode[image]"
-pip install "neuralnode[vision]"
-pip install "neuralnode[telegram]"
-pip install "neuralnode[replica]"
-pip install "neuralnode[speech]"
-pip install "neuralnode[turboquant]"
-```
-
-## Core capabilities
-
-- Chat and text-generation providers
-- Agents and structured tool calling
-- Conversation and persistent memory
-- Retrieval-Augmented Generation (RAG)
-- Embeddings and vector stores
-- Vision and speech-to-text
-- Text-to-speech and Replica integrations
-- OpenAI-compatible local and hosted gateways
-- Provider registry and custom provider extensions
-
-### Hugging Face text-to-image
-
-Install the optional image dependencies and load a Diffusers-compatible
-text-to-image repository. `AutoPipelineForText2Image` supports compatible
-Diffusers model repositories; it does not make unrelated Hugging Face models
-image generators.
-
-```bash
-pip install "neuralnode[image]"
-```
-
-For local image input with a Transformers vision-language model, install the
-`vision` extra (`pip install "neuralnode[vision]"`) and use the existing
-`chat_with_image(...)` interface with a local image file.
-
-```python
-from neuralnode import load_hf_image_model
-
-image_model = load_hf_image_model("stabilityai/stable-diffusion-xl-base-1.0")
-image = image_model.generate_image(
-    "A small robot reading under a tree, watercolor illustration",
-    output_path="generated/robot.png",
-    num_inference_steps=25,
-    seed=42,
+    provider="ollama",
+    model="qwen3",
+    base_url="http://127.0.0.1:11434",
 )
 ```
 
-### One-turn voice agent
+### Enable or disable local-model reasoning
 
-Connect speech recognition, an agent, and speech synthesis in one sequential
-turn. This is suitable for file-based or push-to-talk workflows; it does not
-provide low-latency, full-duplex streaming audio.
-
-```python
-from neuralnode.speech import HTTPSTT
-from neuralnode.tts import HTTPTTS
-from neuralnode.voice import VoiceAgent
-
-voice_agent = VoiceAgent(
-    agent=ai.agent(tools=[...]),
-    speech=HTTPSTT("http://localhost:5010"),
-    tts=HTTPTTS("http://localhost:5012", voice="sara", language="en"),
-)
-turn = voice_agent.process_audio_file("question.wav", output_audio="answer.mp3")
-print(turn.transcript)
-print(turn.response)
-```
-
-For local Hugging Face speech models, install `pip install "neuralnode[hf-audio]"`.
-The default models are `openai/whisper-small` for transcription and
-`facebook/mms-tts-eng` for English speech generation. Pass another compatible
-public or accessible Hugging Face model ID to either adapter.
-
-```python
-from neuralnode.speech import HuggingFaceSTT
-from neuralnode.tts import HuggingFaceTTS
-
-stt = HuggingFaceSTT("openai/whisper-small")
-text = stt.transcribe("question.wav", language="en-US")
-
-tts = HuggingFaceTTS("facebook/mms-tts-eng")
-tts.speak(text, output="recognized-speech.wav")
-```
-
-These adapters load models lazily and use CPU unless CUDA is available. Public
-models do not need a token; gated models require `HF_TOKEN` set in the process
-environment. `HuggingFaceTTS.speak()` writes mono PCM WAV output.
-
-## Documentation
-
-- [Model API deployment](docs/model_api.md)
-- [Examples](examples/)
-- [Contributing](CONTRIBUTING.md)
-- [License and ownership](LICENSE)
-
-## Horus
-
-Locally loaded Horus models use:
-- unified chat template: `horus_unified`
-- unified context window: `8192`
-
-Horus downloads are public-only. Private or gated Hugging Face repositories are not supported.
+For Ollama, `thinking` maps to its native `think` field. `None` keeps the model default, `True` enables reasoning, and `False` disables it:
 
 ```python
 import neuralnode as nn
 
-model = nn.HorusModel(
-    model_id="Horus-1.0-4B",
-    turboquant=True,
-    turboquant_bits=4,
-).load()
-
-response = model.chat([
-    {"role": "system", "content": "You are a helpful assistant."},
-    {"role": "user", "content": "Explain Horus briefly."},
-])
-
-print(response.content)
+ai = nn.NeuralNode(provider="ollama", model="qwen3")
+print(ai.chat("What is 2 + 2?", thinking=False))
+print(ai.chat("Compare two sorting algorithms.", thinking=True))
 ```
 
-### Available Horus model IDs
+To access the normalized reasoning trace itself:
+
+```python
+from neuralnode.providers.local_providers import OllamaProvider
+
+ollama = OllamaProvider(model="qwen3")
+response = ollama.chat(
+    [{"role": "user", "content": "Explain binary search."}],
+    thinking=True,
+)
+print(response["content"])
+print(response["thinking"])
+```
+
+Reasoning is model-dependent; a model without native reasoning may return an empty `thinking` field.
+
+### Stream a response
+
+```python
+for chunk in ai.chat("Write a short poem about Cairo.", stream=True):
+    print(chunk, end="", flush=True)
+```
+
+### Send an image to a vision-capable model
+
+```python
+ai = nn.NeuralNode(provider="ollama", model="llava")
+print(ai.chat_with_image("Describe this image.", image="photo.jpg"))
+```
+
+### Create an agent with tools and reasoning
+
+```python
+ai = nn.NeuralNode(provider="ollama", model="qwen3")
+agent = ai.agent(
+    skills=["datetime", "calculator"],
+    thinking=True,
+    max_iterations=10,
+)
+print(agent.run("What time is it, and what is 37 * 19?"))
+```
+
+Supported skill names include `web_search`, `datetime`, `system_control`, `file`, `python`, `calculator`, and `all`. Use `thinking=False` to execute without the reasoning wrapper.
+
+### Add conversation memory
+
+```python
+ai = nn.NeuralNode(provider="ollama", model="qwen3").with_memory()
+ai.chat("My project is called Atlas.")
+print(ai.chat_with_memory("What is my project called?"))
+```
+
+### Generate embeddings
+
+```python
+ai = nn.NeuralNode(provider="ollama", model="nomic-embed-text")
+vectors = ai.embed(["NeuralNode connects models.", "Ollama runs locally."])
+print(len(vectors), len(vectors[0]))
+```
+
+### Build a small RAG system
+
+```python
+ai = nn.NeuralNode(provider="ollama", model="qwen3")
+rag = ai.rag(store="memory", top_k=3)
+rag.add_documents(["NeuralNode is owned by TokenAI.", "Ollama is a local runtime."])
+print(rag.query("Who owns NeuralNode?"))
+```
+
+For persistent Chroma storage:
+
+```bash
+pip install "neuralnode[chroma]"
+```
+
+```python
+rag = ai.rag(store="chroma", persist_dir="./neuralnode-db")
+```
+
+### Download or load a Hugging Face model
+
+```python
+from neuralnode import download_repo, load_hf_model
+
+path = download_repo("sentence-transformers/all-MiniLM-L6-v2")
+model = load_hf_model("sentence-transformers/all-MiniLM-L6-v2")
+print(path, model)
+```
+
+Private or gated repositories require `HF_TOKEN` or an explicit token. Heavy dependencies are installed with the `local` extra.
+
+### Use Horus models
+
+```bash
+pip install "neuralnode[horus]"
+```
 
 ```python
 from neuralnode import HorusModel
 
-print(HorusModel.list_available_models())
+model = HorusModel(model_id="TokenAI/your-horus-model")
+print(model.chat("Hello from a local Horus model."))
 ```
 
-Supported IDs currently include:
-- `horus`
-- `Horus-1.0-4B`
-- `Horus-1.0-4B-Q4_K_M.gguf`
-- `Horus-1.0-4B-Q5_K_M.gguf`
-- `Horus-1.0-4B-Q6_K.gguf`
-- `Horus-1.0-4B-Q8_0.gguf`
-- `Horus-1.0-4B-F16.gguf`
-- `Horus-Lens-1.0`
-- `Horus-Hiero-9B`
-- `Horus-Hiero-9B-Q4_K_M.gguf`
-- `Horus-Hiero-9B-Q6_K.gguf`
-- `Horus-Hiero-Mini-4B`
-- `Horus-Hiero-Mini-4B-Q4_K_M.gguf`
-- `Horus-Hiero-Mini-4B-Q6_K.gguf`
-- `Horus-Cyber-Nano-1.0`
-- `Horus-Cyber-Nano-1.0-Q4_K_M.gguf`
-- `Horus-Cyber-Nano-1.0-Q5_K_M.gguf`
-- `Horus-Cyber-Nano-1.0-Q6_K.gguf`
-- `Horus-Cyber-Nano-1.0-Q8_0.gguf`
-- `Horus-Cyber-Nano-1.0-F16.gguf`
-- `Horus-Taleeq-0.2B-Base`
+### Generate speech with Replica
 
-### Horus Hiero
+```bash
+pip install "neuralnode[replica]"
+```
+
+```python
+from neuralnode import ReplicaTTS
+
+tts = ReplicaTTS(voice_id="default")
+tts.speak("Welcome to NeuralNode.", output_file="welcome.mp3")
+```
+
+### Run Telegram
+
+```bash
+pip install "neuralnode[telegram]"
+```
+
+```python
+from neuralnode import NeuralNode
+from neuralnode.integrations.telegram import TelegramBot
+
+ai = NeuralNode(provider="ollama", model="qwen3")
+bot = TelegramBot(token="your-token", agent=ai.agent())
+bot.run()
+```
+
+### Connect NeuralNode to OpenClaw
+
+```bash
+pip install "neuralnode[openclaw]"
+```
+
+```python
+from neuralnode import NeuralNode
+from neuralnode.integrations.openclaw import OpenClawServer
+
+ai = NeuralNode(provider="ollama", model="qwen3")
+server = OpenClawServer(node=ai, host="127.0.0.1", port=8001, api_key="change-me")
+server.run()
+```
+
+Keep the gateway on loopback unless a deliberate network and authentication configuration protects it. Do not expose a development gateway publicly without authentication and a reverse proxy policy.
+
+## Provider surface
+
+The registry includes cloud adapters such as OpenAI-compatible, Anthropic, Google, Groq, Cohere, Mistral, DeepSeek, Perplexity, Together, Fireworks, Bedrock, and Vertex AI, plus local adapters including Ollama, llama.cpp, Transformers, vLLM, TGI, MLX, Horus, and other compatible runtimes.
+
+Print the exact installed registry:
 
 ```python
 import neuralnode as nn
-
-model = nn.HorusModel(
-    "Horus-Hiero-Mini-4B-Q4_K_M.gguf",
-    device="cpu",
-).load()
-
-response = model.chat([
-    {"role": "user", "content": "Translate this hieroglyphic text into English."}
-])
-
-print(response.content)
+print("\\n".join(nn.get_available_providers()))
 ```
 
-### Horus Lens text-to-image
+Provider SDKs and credentials are optional. A provider in the registry does not mean its external service or model is included in this package.
 
-```python
-import neuralnode as nn
+## What's new in 2.2.9
 
-model = nn.HorusLensModel("Horus-Lens-1.0").load()
-model.generate_image(
-    "A detailed cinematic image of an ancient Egyptian AI lab, golden light",
-    output_path="outputs/horus_lens.png",
-    seed=42,
-)
-```
+- Removed the deprecated WhatsApp/Twilio integration and legacy gateway.
+- Improved OpenClaw configuration, loopback binding, token authentication, OpenAI-compatible chat-completions support, and streaming fallback.
+- Upgraded Ollama to native `/api/chat` with role-preserving messages, streaming, structured output, tool calls, and native reasoning control through `thinking=True` or `thinking=False`.
+- Updated Ollama embeddings to batch `/api/embed` with a legacy compatibility fallback.
+- Added and validated the NeuralNode → OpenClaw → local model path on AWS.
+- Retained Hugging Face speech, vision, Horus, Replica, agents, memory, RAG, vector-store, and optional TurboQuant workflows.
+- Added reproducible wheel/source builds, CI validation for Python 3.9–3.12, and trusted PyPI publishing through GitHub Actions.
 
-## Replica TTS
+See [CHANGELOG.md](CHANGELOG.md) for the complete release history.
 
-Replica exposes 20 curated `edge_tts` voices through custom voice IDs.
+## Coming soon to NeuralNode
 
-```python
-import neuralnode as nn
+- `replica-preview-0.6B` — TTS model.
+- `horus-cyber-nano-1.2` — text model with vision capabilities.
 
-print(nn.replica_voice_list())
+These are announced as coming soon and are not shipped weights in NeuralNode 2.2.9.
 
-tts = nn.ReplicaTTS(voice_id="replic-salma-language{ar-eg}")
-tts.save_to_file("مرحبا من نيورال نود", "reply.mp3")
-```
+## Documentation and project files
 
-Voice mapping docs:
-- [docs/replica_voice_ids.md](docs/replica_voice_ids.md)
-- [docs/replica_voice_ids.csv](docs/replica_voice_ids.csv)
+- [Detailed documentation](docs/documentation.md)
+- [Changelog](CHANGELOG.md)
+- [License](LICENSE)
+- [Contributing guide](CONTRIBUTING.md)
 
-## Horus + Replica
+## Support and security
 
-```python
-import neuralnode as nn
+For bugs, include the Python version, NeuralNode version, provider, model, a minimal reproduction, and the full error message with secrets removed. Never commit API keys, Hugging Face tokens, Telegram tokens, or OpenClaw authentication tokens.
 
-model = nn.HorusModel(
-    model_id="Horus-1.0-4B",
-    enable_tts=True,
-    tts_voice_id="replic-salma-language{ar-eg}",
-).load()
+## Ownership and license
 
-result = model.chat_and_speak(
-    [{"role": "user", "content": "قل لي جملة ترحيب قصيرة"}],
-    output_file="horus_reply.mp3",
-)
+NeuralNode, its source code, documentation, branding, release artifacts, and maintained integrations are the **exclusive property of TokenAI**. Nothing in this repository transfers ownership or permits redistribution, rebranding, sale, sublicensing, or offering NeuralNode as a competing hosted service without written authorization from TokenAI.
 
-print(result["response"].content)
-print(result["audio_path"])
-```
-
-## Telegram
-
-Use a BotFather token to connect an agent to Telegram.
-
-```python
-import neuralnode as nn
-
-ai = nn.NeuralNode(provider="horus", model="Horus-1.0-4B")
-agent = ai.agent(agent_type="simple", thinking=False)
-
-bot = nn.TelegramBot(
-    token="YOUR_BOTFATHER_TOKEN",
-    agent=agent,
-    config=nn.TelegramBotConfig(
-        token="YOUR_BOTFATHER_TOKEN",
-        enable_voice=True,
-        enable_documents=True,
-        reply_mode="both",  # text | voice | both
-        voice_reply_voice_id="replic-aria-language{en-us}",
-    ),
-)
-
-bot.start()
-```
-
-Telegram now supports:
-- text chat
-- voice transcription
-- optional Replica voice replies
-- document download and analysis
-
-## RAG
-
-```python
-import neuralnode as nn
-
-ai = nn.NeuralNode(provider="ollama", model="llama3.2")
-rag = ai.rag(store="memory")
-rag.add_documents(["notes.txt", "report.pdf"])
-
-print(rag.query("Summarize the key findings"))
-```
-
-If the current LLM does not support embeddings, RAG automatically tries:
-1. a dedicated embedding provider
-2. sentence-transformers
-3. lexical fallback embeddings
-
-## Supported Provider Surface
-
-Only implemented providers are exposed through the public provider registry.
-
-Cloud chat providers:
-- `anthropic`
-- `google`
-- `cohere`
-- `mistral`
-- `groq`
-- `deepseek`
-- `perplexity`
-- `ai21`
-- `together`
-- `fireworks`
-- `bedrock`
-- `vertexai`
-
-Local providers:
-- `ollama`
-- `llamacpp`
-- `transformers`
-- `llamafile`
-- `koboldcpp`
-- `textgenwebui`
-- `exllama`
-- `autogptq`
-- `autoawq`
-- `vllm`
-- `tgi`
-- `deepspeed`
-- `rayserve`
-- `mlflow`
-- `bentoml`
-- `triton`
-- `mlx`
-- `horus`
-
-## TurboQuant
-
-TurboQuant is integrated into:
-- `HorusModel(..., turboquant=True, turboquant_bits=4)`
-- `create_provider("transformers", turboquant=True, turboquant_bits=4, ...)`
-
-If the `turboquant` package is not installed or the backend cannot use it, NeuralNode falls back to normal generation automatically.
-
-## Notes
-
-- OpenAI-compatible providers are fully supported (OpenAI, OpenRouter, and AgentRouter).
-- GGUF Horus models require `llama-cpp-python`.
-- Horus downloads from Hugging Face require `huggingface_hub`.
-
-## OpenClaw Integration
-
-NeuralNode can expose a local OpenAI-compatible API for an OpenClaw Gateway to use. The
-`OpenClawServer` serves `/v1/models` and `/v1/chat/completions` without authentication
-on loopback by default. Binding to a non-loopback host requires an API key, and clients
-must send it as a Bearer token. Browser access is disabled by default; pass explicit
-`cors_origins` only when browser clients need access. The `OpenClawManager` generates a
-per-instance token automatically and configures its local server to require it.
-
-`OpenClawClient` calls the Gateway's OpenAI-compatible chat endpoint. Enable
-`gateway.http.endpoints.chatCompletions` in the OpenClaw configuration before using
-`send_task`; OpenClaw disables this endpoint by default. A stable `session_id` is sent
-as the OpenAI `user` value, so the Gateway creates or resumes that conversation when
-the first message is sent. OpenClaw session status/control uses its WebSocket RPC API
-and is not implemented by this HTTP client.
-
-## Links
-
-- **TokenAI**: [https://tokenai.llc/](https://tokenai.llc/)
-- **NeuralNode**: [https://tokenai.llc/](https://tokenai.llc/)
-
-## License and ownership
-
-NeuralNode is distributed under the **TokenAI Source-Available License
-Version 1.0**. This is a source-available license, not an OSI-approved Open
-Source license.
-
-The NeuralNode Framework and the original NeuralNode source code are owned by
-**TokenAI**, subject to the separate licenses of third-party libraries, models,
-model weights, APIs, datasets, and other external materials. This repository's
-license does not transfer ownership of NeuralNode, TokenAI, or their trademarks.
-
-If you use, fork, embed, modify, or build a product on NeuralNode, you must
-retain the license and attribution notices and clearly state:
-
-> This product uses NeuralNode, a framework owned by TokenAI.
-
-See [LICENSE](LICENSE), [NOTICE](NOTICE), [TRADEMARKS.md](TRADEMARKS.md), and
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the applicable terms.
-
-## Contributing
-
-Contributions, bug fixes, tests, and documentation improvements are welcome
-through GitHub issues, forks, and pull requests. Every pull request is reviewed
-by TokenAI and may be accepted, changed, or rejected. A pull request becomes
-part of NeuralNode only after TokenAI merges it.
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution terms and workflow.
-
-## Hugging Face Open-Weights Support
-
-Any open-weight model on **Hugging Face** can be downloaded and used with NeuralNode (not only TokenAI models). Use the built-in HF helpers:
-
-```python
-import neuralnode as nn
-
-# 1) Discover files in a repo
-print(nn.list_repo_files("org/model"))  # e.g. ["config.json", "model.safetensors", ...]
-
-# 2) Download the repo (or a specific file)
-path = nn.download_repo("org/model")                       # safetensors/auto
-path = nn.download_repo("org/model", file="model.gguf")    # GGUF
-
-# 3) Load it into NeuralNode
-llm = nn.load_hf_model("org/model", device="auto")
-print(llm.chat([{"role": "user", "content": "Hello with any HF model"}]))
-```
-
-Supported formats: **GGUF/GGML, SafeTensors, PyTorch (.bin/.pt), ONNX, AWQ, GPTQ**.
-Private or gated repos **are** supported by the HF helpers (with `HF_TOKEN` env var).
-Python example:
+NeuralNode is released under the **TokenAI Source-Available License v1.0** in [LICENSE](LICENSE). This is a proprietary source-available license, not an OSI-approved open-source license. Third-party providers, SDKs, model weights, and external services remain subject to their own licenses and terms.
 

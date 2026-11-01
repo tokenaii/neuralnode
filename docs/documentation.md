@@ -1,6 +1,6 @@
 # NeuralNode Documentation
 
-This document reflects the current public API and shipped functionality in `neuralnode` v3.1.0.
+This document reflects the current public API and shipped functionality in `neuralnode` v2.2.9.
 
 ## Overview
 
@@ -257,6 +257,7 @@ If the runtime cannot create a TurboQuant cache, NeuralNode falls back to standa
 
 ## Notes
 
-- OpenAI is intentionally blocked.
+- OpenAI-compatible provider support is available when the optional OpenAI SDK
+  is installed and the provider credentials/configuration are supplied.
 - Some advanced historical documentation from older versions has been removed because it did not match the shipped implementation.
 - `get_available_providers()` now reflects only the providers that are actually implemented in the current package surface.
