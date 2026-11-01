@@ -416,8 +416,11 @@ If the `turboquant` package is not installed or the backend cannot use it, Neura
 ## OpenClaw Integration
 
 NeuralNode can expose a local OpenAI-compatible API for an OpenClaw Gateway to use. The
-`OpenClawServer` serves `/v1/models` and `/v1/chat/completions`; keep it on loopback or
-another private network and configure the OpenClaw provider to point to its `/v1` URL.
+`OpenClawServer` serves `/v1/models` and `/v1/chat/completions` without authentication
+on loopback by default. Binding to a non-loopback host requires an API key, and clients
+must send it as a Bearer token. Browser access is disabled by default; pass explicit
+`cors_origins` only when browser clients need access. The `OpenClawManager` generates a
+per-instance token automatically and configures its local server to require it.
 
 `OpenClawClient` calls the Gateway's OpenAI-compatible chat endpoint. Enable
 `gateway.http.endpoints.chatCompletions` in the OpenClaw configuration before using

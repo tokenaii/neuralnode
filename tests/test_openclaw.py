@@ -2,6 +2,8 @@ import sys
 import unittest
 from unittest.mock import Mock, patch
 
+from fastapi.testclient import TestClient
+
 sys.path.insert(0, "src")
 
 from neuralnode.integrations.openclaw import OpenClawClient, OpenClawServer
@@ -62,6 +64,104 @@ class TestOpenClaw(unittest.TestCase):
         server = OpenClawServer(node=node, port=18788)
         self.assertEqual(server.port, 18788)
         self.assertEqual(server.node.model, "test-model")
+
+    def test_non_loopback_server_requires_api_key(self):
+        class MockNode:
+            model = "test-model"
+
+        with self.assertRaisesRegex(ValueError, "api_key is required"):
+            OpenClawServer(node=MockNode(), host="0.0.0.0")
+
+    def test_server_rejects_empty_api_keys_and_wildcard_cors(self):
+        class MockNode:
+            model = "test-model"
+
+        with self.assertRaisesRegex(ValueError, "api_key must be a non-empty string"):
+            OpenClawServer(node=MockNode(), api_key="  ")
+        with self.assertRaisesRegex(ValueError, "explicit origins"):
+            OpenClawServer(node=MockNode(), cors_origins=["*"])
+
+    def test_manager_passes_its_generated_token_to_server(self):
+        from neuralnode.integrations.openclaw import OpenClawManager
+
+        class MockNode:
+            model = "test-model"
+
+        manager = OpenClawManager(node=MockNode())
+        self.assertEqual(manager.server.api_key, manager.api_key)
+
+    def test_public_server_authenticates_models_and_chat(self):
+        class MockNode:
+            model = "test-model"
+
+            def chat(self, **kwargs):
+                return "safe response"
+
+        server = OpenClawServer(node=MockNode(), host="0.0.0.0", api_key="server-token")
+        client = TestClient(server.app)
+
+        self.assertEqual(client.get("/v1/models").status_code, 401)
+        self.assertEqual(
+            client.post(
+                "/v1/chat/completions",
+                json={"model": "test-model", "messages": [{"role": "user", "content": "Hi"}]},
+            ).status_code,
+            401,
+        )
+        headers = {"Authorization": "Bearer server-token"}
+        self.assertEqual(client.get("/v1/models", headers=headers).status_code, 200)
+        response = client.post(
+            "/v1/chat/completions",
+            headers=headers,
+            json={"model": "test-model", "messages": [{"role": "user", "content": "Hi"}]},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["choices"][0]["message"]["content"], "safe response")
+
+    def test_openclaw_server_does_not_reflect_arbitrary_cors_origins(self):
+        class MockNode:
+            model = "test-model"
+
+        client = TestClient(OpenClawServer(node=MockNode()).app)
+        response = client.options(
+            "/v1/models",
+            headers={
+                "Origin": "https://attacker.example",
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+
+        self.assertNotEqual(
+            response.headers.get("access-control-allow-origin"), "https://attacker.example"
+        )
+
+    def test_chat_errors_do_not_disclose_exception_details(self):
+        class MockNode:
+            model = "test-model"
+
+            def chat(self, **kwargs):
+                raise RuntimeError("provider secret response")
+
+        client = TestClient(OpenClawServer(node=MockNode()).app)
+        response = client.post(
+            "/v1/chat/completions",
+            json={"model": "test-model", "messages": [{"role": "user", "content": "Hi"}]},
+        )
+
+        self.assertEqual(response.status_code, 500)
+        self.assertNotIn("provider secret response", response.text)
+
+    def test_streaming_errors_do_not_disclose_exception_details(self):
+        class MockNode:
+            model = "test-model"
+
+            def chat(self, **kwargs):
+                raise RuntimeError("private provider detail")
+
+        server = OpenClawServer(node=MockNode())
+        result = "".join(server._stream_completion("Hi", None, [], "test-model"))
+        self.assertIn("The request could not be completed.", result)
+        self.assertNotIn("private provider detail", result)
 
 
 if __name__ == "__main__":

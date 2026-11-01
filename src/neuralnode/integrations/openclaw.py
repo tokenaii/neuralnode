@@ -16,6 +16,8 @@ import threading
 import subprocess
 import shutil
 import json
+import hmac
+import ipaddress
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union, Generator
 
@@ -27,13 +29,14 @@ logger = logging.getLogger(__name__)
 # FastAPI and Uvicorn might be optional/lazy imported to avoid slow startup
 _FASTAPI_AVAILABLE = False
 try:
-    from fastapi import FastAPI, HTTPException
+    from fastapi import FastAPI, Header, HTTPException
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import StreamingResponse
 
     _FASTAPI_AVAILABLE = True
 except ImportError:
     FastAPI = None  # type: ignore
+    Header = None  # type: ignore
     HTTPException = None  # type: ignore
     CORSMiddleware = None  # type: ignore
     StreamingResponse = None  # type: ignore
@@ -68,7 +71,14 @@ class ChatCompletionRequest(BaseModel):
 class OpenClawServer:
     """FastAPI server exposing an OpenAI-compatible API for NeuralNode models."""
 
-    def __init__(self, node: Any, port: int = 18788, host: str = "127.0.0.1"):
+    def __init__(
+        self,
+        node: Any,
+        port: int = 18788,
+        host: str = "127.0.0.1",
+        api_key: Optional[str] = None,
+        cors_origins: Optional[List[str]] = None,
+    ):
         if not _FASTAPI_AVAILABLE:
             raise ImportError(
                 "FastAPI and uvicorn are required for OpenClawServer. "
@@ -77,23 +87,52 @@ class OpenClawServer:
         self.node = node
         self.port = port
         self.host = host
+        if api_key is not None and (not isinstance(api_key, str) or not api_key.strip()):
+            raise ValueError("api_key must be a non-empty string when provided.")
+        if any(not isinstance(origin, str) or origin == "*" for origin in cors_origins or []):
+            raise ValueError(
+                "cors_origins must contain explicit origins; wildcard origins are unsafe."
+            )
+        self.api_key = api_key
+        self.cors_origins = list(cors_origins or [])
+        if not self.api_key and not self._is_loopback_host(host):
+            raise ValueError(
+                "api_key is required when OpenClawServer binds to a non-loopback host."
+            )
         self.app = FastAPI(title="NeuralNode OpenAI-Compatible API Server")
         self._thread: Optional[threading.Thread] = None
         self._server: Optional[Any] = None
         self._setup_routes()
 
     def _setup_routes(self) -> None:
-        # Enable CORS
+        # Browser access is opt-in. In particular, never combine wildcard
+        # origins with credentials on an API that can execute model requests.
         self.app.add_middleware(
             CORSMiddleware,
-            allow_origins=["*"],
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
+            allow_origins=self.cors_origins,
+            allow_credentials=False,
+            allow_methods=["GET", "POST"],
+            allow_headers=["Authorization", "Content-Type"],
         )
 
+        def require_api_auth(authorization: Optional[str]) -> None:
+            if not self.api_key:
+                return
+            scheme, separator, token = (authorization or "").partition(" ")
+            if (
+                not separator
+                or scheme.lower() != "bearer"
+                or not hmac.compare_digest(token, self.api_key)
+            ):
+                raise HTTPException(
+                    status_code=401,
+                    detail="Bearer access token required.",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+
         @self.app.get("/v1/models")
-        async def list_models():
+        async def list_models(authorization: Optional[str] = Header(default=None)):
+            require_api_auth(authorization)
             return {
                 "object": "list",
                 "data": [
@@ -107,7 +146,11 @@ class OpenClawServer:
             }
 
         @self.app.post("/v1/chat/completions")
-        async def chat_completions(request: ChatCompletionRequest):
+        async def chat_completions(
+            request: ChatCompletionRequest,
+            authorization: Optional[str] = Header(default=None),
+        ):
+            require_api_auth(authorization)
             try:
                 # Parse OpenAI messages into NeuralNode format
                 last_message, system_prompt, history = self._parse_messages(request.messages)
@@ -139,9 +182,20 @@ class OpenClawServer:
                     ],
                     "usage": {"prompt_tokens": -1, "completion_tokens": -1, "total_tokens": -1},
                 }
-            except Exception as e:
-                logger.error(f"Error in chat_completions: {e}")
-                raise HTTPException(status_code=500, detail=str(e))
+            except Exception:
+                logger.exception("OpenClaw chat request failed")
+                raise HTTPException(
+                    status_code=500, detail="The request could not be completed."
+                ) from None
+
+    @staticmethod
+    def _is_loopback_host(host: str) -> bool:
+        if host.strip().lower() == "localhost":
+            return True
+        try:
+            return ipaddress.ip_address(host.strip("[]")).is_loopback
+        except ValueError:
+            return False
 
     def _parse_messages(self, messages: List[ChatMessage]) -> tuple:
         system_prompt = None
@@ -202,9 +256,20 @@ class OpenClawServer:
             }
             yield f"data: {json.dumps(stop_data)}\n\n"
             yield "data: [DONE]\n\n"
-        except Exception as e:
-            logger.error(f"Error in streaming: {e}")
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        except Exception:
+            logger.exception("OpenClaw streaming request failed")
+            yield (
+                "data: "
+                + json.dumps(
+                    {
+                        "error": {
+                            "message": "The request could not be completed.",
+                            "type": "server_error",
+                        }
+                    }
+                )
+                + "\n\n"
+            )
             yield "data: [DONE]\n\n"
 
     def start(self) -> None:
@@ -347,7 +412,11 @@ class OpenClawManager:
         )
 
         # Initialize internal server
-        self.server = OpenClawServer(node=self.node, port=self.api_server_port)
+        self.server = OpenClawServer(
+            node=self.node,
+            port=self.api_server_port,
+            api_key=self.api_key,
+        )
         self.process: Optional[subprocess.Popen] = None
 
     def setup(self) -> None:
