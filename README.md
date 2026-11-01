@@ -1,6 +1,10 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/tokenaillc/neuralnode/main/media/neuralnode-dark-transparent.png" alt="NeuralNode" width="720">
+</p>
+
 # NeuralNode
 
-**NeuralNode 2.2.9** is a Python framework for connecting cloud and local AI models through one provider interface. It includes chat, streaming, vision, embeddings, agents, memory, RAG, speech, Hugging Face models, Horus models, Ollama, OpenClaw, and optional integrations.
+**NeuralNode 2.2.10** is a Python framework for connecting cloud and local AI models through one provider interface. It includes chat, streaming, vision, embeddings, agents, memory, RAG, speech, Hugging Face models, Horus models, Ollama, OpenClaw, and optional integrations.
 
 NeuralNode is developed and fully owned by **TokenAI**. It is distributed under the TokenAI Source-Available License described at the end of this file.
 

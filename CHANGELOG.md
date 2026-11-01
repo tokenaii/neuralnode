@@ -2,6 +2,14 @@
 
 All notable changes to NeuralNode are documented here.
 
+## 2.2.10 — 2026-11-01
+
+### Documentation and branding
+
+- Added the dark NeuralNode wordmark as a transparent PNG for reliable display
+  on light PyPI pages and other light backgrounds.
+- Updated the README image reference to the published transparent asset.
+
 ## 2.2.9 — 2026-11-01
 
 ### Integrations and runtime cleanup

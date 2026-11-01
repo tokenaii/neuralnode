@@ -42,7 +42,7 @@ Quick Start::
     text = sr.listen()
 """
 
-__version__ = "2.2.9"
+__version__ = "2.2.10"
 __author__ = "NeuralNode Contributors"
 
 # ── Core types ────────────────────────────────────────────────────────────────

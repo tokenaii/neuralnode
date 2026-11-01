@@ -1,6 +1,6 @@
 # NeuralNode Documentation
 
-This document reflects the current public API and shipped functionality in `neuralnode` v2.2.9.
+This document reflects the current public API and shipped functionality in `neuralnode` v2.2.10.
 
 ## Overview
 
