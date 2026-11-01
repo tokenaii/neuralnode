@@ -410,8 +410,7 @@ per-instance token automatically and configures its local server to require it.
 `send_task`; OpenClaw disables this endpoint by default. A stable `session_id` is sent
 as the OpenAI `user` value, so the Gateway creates or resumes that conversation when
 the first message is sent. OpenClaw session status/control uses its WebSocket RPC API
-and is not implemented by this HTTP client. Messaging channels such as WhatsApp must
-be configured and authorized in OpenClaw itself.
+and is not implemented by this HTTP client.
 
 ## Links
 

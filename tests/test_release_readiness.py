@@ -26,13 +26,11 @@ class TestReleaseReadiness(unittest.TestCase):
         from neuralnode.integrations.telegram import TelegramBot
         from neuralnode.integrations.discord import DiscordBot
         from neuralnode.integrations.slack import SlackBot
-        from neuralnode.integrations.whatsapp import TwilioWhatsAppBot
         from neuralnode.integrations.openclaw import OpenClawManager, OpenClawServer, OpenClawClient
 
         self.assertIsNotNone(TelegramBot)
         self.assertIsNotNone(DiscordBot)
         self.assertIsNotNone(SlackBot)
-        self.assertIsNotNone(TwilioWhatsAppBot)
         self.assertIsNotNone(OpenClawManager)
 
     def test_aembed_implementation(self):
@@ -46,7 +44,6 @@ class TestReleaseReadiness(unittest.TestCase):
         """Verify that the short package 'nn' correctly exports NeuralNode main classes."""
         self.assertTrue(hasattr(nn_short, "NeuralNode"))
         self.assertTrue(hasattr(nn_short, "Message"))
-        self.assertTrue(hasattr(nn_short, "TwilioWhatsAppBot"))
         self.assertTrue(hasattr(nn_short, "OpenClawManager"))
 
 if __name__ == "__main__":
