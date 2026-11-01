@@ -151,8 +151,11 @@ class OllamaProvider(BaseChatProvider, LocalProviderMixin):
                 {
                     "role": msg.get("role", "user"),
                     "content": msg.get("content", ""),
-                    **({"images": (msg.get("metadata") or {}).get("images", [])}
-                       if (msg.get("metadata") or {}).get("images") else {}),
+                    **(
+                        {"images": (msg.get("metadata") or {}).get("images", [])}
+                        if (msg.get("metadata") or {}).get("images")
+                        else {}
+                    ),
                 }
                 for msg in messages
             ],
