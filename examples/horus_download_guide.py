@@ -1,9 +1,6 @@
-"""
-Horus public model download and usage guide.
+"""Horus model download and usage guide."""
 
-NeuralNode Horus downloads are public-only. If a Hugging Face repository is
-private or gated, loading fails instead of using credentials.
-"""
+from pathlib import Path
 
 import neuralnode as nn
 
@@ -17,7 +14,7 @@ def example_simple_chat_model():
 def example_custom_cache():
     model = nn.HorusModel(
         "horus",
-        cache_dir="D:/Models/Horus",
+        cache_dir=str(Path.home() / ".cache" / "neuralnode" / "models"),
     ).load()
     print(model.get_model_info())
 

@@ -7,6 +7,7 @@ Run:
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import neuralnode as nn
 
@@ -15,6 +16,7 @@ def main() -> None:
     # Example TQ model id (replace with the real published TQ GGUF file when available)
     tq_model_id = "Horus-1.0-4B-TQ3_1S.gguf"
     q4_model_id = "Horus-1.0-4B-Q4_K_M.gguf"
+    cache_dir = str(Path.home() / ".cache" / "neuralnode" / "models")
 
     # Optional: register TQ in Horus listed models for nicer discovery.
     nn.HorusModel.register_gguf_variant(
@@ -30,7 +32,7 @@ def main() -> None:
     # Use any ready GGUF model directly by model_id.
     model = nn.HorusModel(
         model_id=q4_model_id,
-        cache_dir=r"D:\Work Space\NeuralNode\hf_cache",
+        cache_dir=cache_dir,
         local_files_only=True,
         suppress_warnings=True,
         suppress_native_output=True,
@@ -46,7 +48,7 @@ def main() -> None:
         model_ids=[q4_model_id],
         prompt="Explain TurboQuant in one line.",
         runs=2,
-        cache_dir=r"D:\Work Space\NeuralNode\hf_cache",
+        cache_dir=cache_dir,
         local_files_only=True,
         max_new_tokens=48,
     )
