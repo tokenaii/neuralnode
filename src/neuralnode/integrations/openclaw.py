@@ -231,12 +231,21 @@ class OpenClawServer:
         chat_id = f"chatcmpl-{int(time.time())}"
 
         try:
-            # Call streaming chat
-            response_generator = self.node.chat(
-                message=message, system_prompt=system_prompt, history=history, stream=True
-            )
+            # OpenClaw commonly requests streaming. Providers that only expose
+            # blocking chat should still work: return one streamed chunk rather
+            # than failing the whole gateway request.
+            try:
+                response_generator = self.node.chat(
+                    message=message, system_prompt=system_prompt, history=history, stream=True
+                )
+                iterator = iter(response_generator)
+            except NotImplementedError:
+                response_text = self.node.chat(
+                    message=message, system_prompt=system_prompt, history=history, stream=False
+                )
+                iterator = iter((response_text,))
 
-            for chunk in response_generator:
+            for chunk in iterator:
                 data = {
                     "id": chat_id,
                     "object": "chat.completion.chunk",
@@ -501,21 +510,44 @@ class OpenClawManager:
                 f"OpenClaw directory not found at {repo_dir}. Run setup() first."
             )
 
-        # Write config.json
+        # OpenClaw reads its configuration through OPENCLAW_CONFIG_PATH. Keep
+        # the file inside the managed install so global user config is safe.
         import json
 
         config_path = repo_dir / "config.json"
+        model_id = getattr(self.node, "model", "neuralnode-model") or "neuralnode-model"
+        provider_id = "neuralnode"
         config_data = {
             "gateway": {
                 "port": self.gateway_port,
-                "host": self.gateway_host,
-                "token": self.api_key,
+                "bind": "loopback",
+                "auth": {"mode": "token", "token": self.api_key},
+                "http": {"endpoints": {"chatCompletions": {"enabled": True}}},
             },
-            "llm": {
-                "provider": "openai",
-                "baseURL": f"http://127.0.0.1:{self.api_server_port}/v1",
-                "apiKey": self.api_key,
-                "model": getattr(self.node, "model", "neuralnode-model") or "neuralnode-model",
+            "agents": {
+                "defaults": {"model": {"primary": f"{provider_id}/{model_id}"}},
+            },
+            "models": {
+                "mode": "merge",
+                "providers": {
+                    provider_id: {
+                        "baseUrl": f"http://127.0.0.1:{self.api_server_port}/v1",
+                        "apiKey": self.api_key,
+                        "api": "openai-completions",
+                        "timeoutSeconds": 300,
+                        "models": [
+                            {
+                                "id": model_id,
+                                "name": model_id,
+                                "reasoning": False,
+                                "input": ["text"],
+                                "cost": {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0},
+                                "contextWindow": 128000,
+                                "maxTokens": 4096,
+                            }
+                        ],
+                    }
+                },
             },
         }
 
@@ -571,6 +603,7 @@ class OpenClawManager:
                 "OPENAI_API_KEY": self.api_key,
                 "OPENAI_MODEL": getattr(self.node, "model", "neuralnode-model")
                 or "neuralnode-model",
+                "OPENCLAW_CONFIG_PATH": str(repo_dir / "config.json"),
             }
         )
         self.process = subprocess.Popen(

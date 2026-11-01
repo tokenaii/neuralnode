@@ -2,6 +2,27 @@
 
 All notable changes to NeuralNode are documented here.
 
+## 2.2.9 — 2026-11-01
+
+### Integrations and runtime cleanup
+
+- Removed the deprecated WhatsApp/Twilio integration and legacy API gateway.
+- Removed obsolete provider and deployment artifacts from the maintained core.
+- Updated the OpenClaw manager for the current OpenClaw configuration schema,
+  loopback-only gateway binding, token authentication, and OpenAI-compatible
+  chat-completions enablement.
+- Added a blocking-chat fallback for OpenClaw streaming requests so providers
+  without native streaming can still complete gateway turns.
+- Validated the NeuralNode → OpenClaw → local Qwen/llama.cpp path on AWS.
+- Upgraded Ollama chat integration to the native `/api/chat` protocol with
+  role-preserving messages, streaming, structured output, and tool calls.
+- Added Ollama native reasoning control through `thinking=True` or
+  `thinking=False`, preserving the model trace in response metadata.
+- Updated Ollama embeddings to the batch `/api/embed` endpoint with a legacy
+  compatibility fallback.
+- Removed the remaining Twilio optional dependency with the retired WhatsApp
+  integration.
+
 ## 2.2.8 — 2026-11-01
 
 NeuralNode 2.2.8 is a feature and reliability release focused on local model

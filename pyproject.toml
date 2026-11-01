@@ -4,17 +4,17 @@ build-backend = "hatchling.build"
 
 [project]
 name = "neuralnode"
-version = "2.2.8"
+version = "2.2.9"
 description = "Connect models. Build AI. A Python framework for LLM providers, agents, memory, RAG, and tools."
 readme = "README.md"
 requires-python = ">=3.9"
 license = {file = "LICENSE"}
 keywords = ["llm", "ai", "agent", "framework", "openai", "anthropic", "google", "ollama", "langchain", "rag", "tools", "automation", "embeddings", "vector-stores"]
 authors = [
-    {name = "Assem Sabry", email = "assemsabryy@outlook.com"}
+    {name = "Assem Sabry", email = "assemsabry777@gmail.com"}
 ]
 maintainers = [
-    {name = "Assem Sabry", email = "assemsabryy@outlook.com"}
+    {name = "Assem Sabry", email = "assemsabry777@gmail.com"}
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -197,7 +197,6 @@ all = [
     "einops>=0.7.0",
     "sentence-transformers>=2.2.0",
     "python-telegram-bot>=20.0",
-    "twilio>=9.0.0",
     "fastapi>=0.110.0",
     "uvicorn>=0.27.0",
     "edge-tts>=6.1.0",

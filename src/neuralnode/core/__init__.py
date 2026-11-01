@@ -148,6 +148,13 @@ def ensure_llm_response(
                     )
                 )
 
+        metadata = dict(response.get("metadata", {}) or {})
+        # Preserve provider-specific reasoning traces (for example Ollama's
+        # native ``message.thinking``) without changing the stable response
+        # shape used by existing callers.
+        if response.get("thinking") is not None and "thinking" not in metadata:
+            metadata["thinking"] = response.get("thinking")
+
         return LLMResponse(
             content=response.get("content", ""),
             model=response.get("model", default_model),
@@ -155,7 +162,7 @@ def ensure_llm_response(
             tool_calls=tool_calls,
             usage=response.get("usage", {}) or {},
             finish_reason=response.get("finish_reason"),
-            metadata=response.get("metadata", {}) or {},
+            metadata=metadata,
         )
 
     raise TypeError(f"Unsupported response type: {type(response)!r}")
