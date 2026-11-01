@@ -5,14 +5,13 @@ Thinking Mode Usage Example for NeuralNode
 Complete guide to using Thinking Mode with ANY model.
 """
 
-import sys
-sys.path.insert(0, r"d:\Work Space\NeuralNode\neuralnode\src")
+from pathlib import Path
 
 import neuralnode as nn
 
 # Configuration
 MODEL_ID = "Horus-1.0-4B-Q4_K_M.gguf"
-CACHE_DIR = "D:/neuralnode_models"
+CACHE_DIR = str(Path.home() / ".cache" / "neuralnode" / "models")
 
 
 def example_1_basic_thinking():

@@ -1,8 +1,8 @@
 import sys
 from pathlib import Path
 
-# Add src to path
-src_path = str(Path(r'd:\Work Space\NeuralNode\neuralnode\src'))
+# Add this checkout's src directory to the import path.
+src_path = str(Path(__file__).resolve().parent)
 sys.path.insert(0, src_path)
 
 print("Starting debug import...")

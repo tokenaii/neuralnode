@@ -1,8 +1,8 @@
 # Requirements for Shade AI Bot
 # Install with: pip install -r requirements_shade.txt
 
-# NeuralNode (local path)
--e D:/Work Space/NeuralNode/neuralnode
+# NeuralNode (install from the repository root)
+-e .
 
 # Core ML
 torch>=2.0.0
