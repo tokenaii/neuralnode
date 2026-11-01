@@ -58,6 +58,8 @@ class OllamaProvider(BaseChatProvider, LocalProviderMixin):
         "llava",
         "phi3",
         "qwen2.5",
+        "qwen3",
+        "deepseek-r1",
         "gemma2",
         "nemotron",
     ]
@@ -68,6 +70,9 @@ class OllamaProvider(BaseChatProvider, LocalProviderMixin):
             chat=True,
             streaming=True,
             embeddings=True,
+            function_calling=True,
+            tool_use=True,
+            json_mode=True,
             context_window=128000,
             async_support=True,
         )
@@ -76,11 +81,22 @@ class OllamaProvider(BaseChatProvider, LocalProviderMixin):
         super().__init__(**kwargs)
         self.base_url = self.base_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
         self.model = self.model or self.default_model
+        # Ollama's native thinking control is model-dependent. ``None`` keeps
+        # the model default; bools or supported level names override it.
+        self.thinking = kwargs.get("thinking", kwargs.get("think"))
 
-        if not self.check_server_running(self.base_url):
+        if not self._ollama_available():
             logger.warning(
                 f"Ollama server not running at {self.base_url}. Start with: ollama serve"
             )
+
+    def _ollama_available(self) -> bool:
+        """Check Ollama's actual health/discovery endpoint."""
+        try:
+            response = requests.get(f"{self.base_url}/api/tags", timeout=5)
+            return response.status_code == 200
+        except requests.RequestException:
+            return False
 
     def _format_messages(self, messages):
         """Format messages for Ollama."""
@@ -110,14 +126,39 @@ class OllamaProvider(BaseChatProvider, LocalProviderMixin):
 
         return result
 
-    def chat(self, messages, model=None, temperature=0.7, max_tokens=None, stream=False, **kwargs):
-        """Send chat request to Ollama."""
-        model = model or self.model
-        formatted = self._format_messages(messages)
+    def chat(
+        self,
+        messages,
+        model=None,
+        temperature=0.7,
+        max_tokens=None,
+        stream=False,
+        thinking=None,
+        tools=None,
+        response_format=None,
+        **kwargs,
+    ):
+        """Send a role-preserving chat request to Ollama.
 
+        ``thinking`` maps to Ollama's native ``think`` field. Use ``None`` to
+        keep the selected model's default, ``False`` to disable it, ``True``
+        to enable it, or a model-supported named level such as ``"high"``.
+        """
+        model = model or self.model
         payload = {
             "model": model,
-            "prompt": formatted["prompt"],
+            "messages": [
+                {
+                    "role": msg.get("role", "user"),
+                    "content": msg.get("content", ""),
+                    **(
+                        {"images": (msg.get("metadata") or {}).get("images", [])}
+                        if (msg.get("metadata") or {}).get("images")
+                        else {}
+                    ),
+                }
+                for msg in messages
+            ],
             "stream": stream,
             "options": {
                 "temperature": temperature,
@@ -125,18 +166,36 @@ class OllamaProvider(BaseChatProvider, LocalProviderMixin):
             },
         }
 
-        if "system" in formatted:
-            payload["system"] = formatted["system"]
+        resolved_thinking = self.thinking if thinking is None else thinking
+        if resolved_thinking is not None:
+            payload["think"] = resolved_thinking
+        if tools:
+            payload["tools"] = tools
+        if response_format:
+            payload["format"] = response_format
 
         if stream:
             return self._stream_chat(payload)
 
-        response = requests.post(f"{self.base_url}/api/generate", json=payload, timeout=120)
+        response = requests.post(f"{self.base_url}/api/chat", json=payload, timeout=120)
         response.raise_for_status()
         data = response.json()
+        message = data.get("message") or {}
+        tool_calls = []
+        for call in message.get("tool_calls", []) or []:
+            function = call.get("function", call) if isinstance(call, dict) else {}
+            tool_calls.append(
+                {
+                    "name": function.get("name", ""),
+                    "arguments": function.get("arguments", {}) or {},
+                    "call_id": call.get("id") if isinstance(call, dict) else None,
+                }
+            )
 
         return {
-            "content": data.get("response", ""),
+            "content": message.get("content", data.get("response", "")),
+            "thinking": message.get("thinking", data.get("thinking", "")),
+            "tool_calls": tool_calls,
             "model": model,
             "provider": self.provider_name,
             "usage": {
@@ -149,7 +208,7 @@ class OllamaProvider(BaseChatProvider, LocalProviderMixin):
     def _stream_chat(self, payload):
         """Stream chat from Ollama."""
         response = requests.post(
-            f"{self.base_url}/api/generate", json=payload, stream=True, timeout=120
+            f"{self.base_url}/api/chat", json=payload, stream=True, timeout=120
         )
         response.raise_for_status()
 
@@ -157,10 +216,17 @@ class OllamaProvider(BaseChatProvider, LocalProviderMixin):
             if line:
                 try:
                     data = json.loads(line)
-                    text = data.get("response", "")
+                    message = data.get("message") or {}
+                    text = message.get("content", data.get("response", ""))
+                    thinking = message.get("thinking", data.get("thinking", ""))
                     is_done = data.get("done", False)
 
-                    yield {"content": text, "done": is_done}
+                    yield {
+                        "content": text,
+                        "thinking": thinking,
+                        "is_thinking": bool(thinking),
+                        "done": is_done,
+                    }
 
                     if is_done:
                         break
@@ -179,20 +245,25 @@ class OllamaProvider(BaseChatProvider, LocalProviderMixin):
             texts = [texts]
 
         model = model or "nomic-embed-text"
-        embeddings = []
-
-        for text in texts:
-            response = requests.post(
-                f"{self.base_url}/api/embeddings",
-                json={
-                    "model": model,
-                    "prompt": text,
-                },
-                timeout=60,
-            )
-            response.raise_for_status()
-            data = response.json()
-            embeddings.append(data.get("embedding", []))
+        response = requests.post(
+            f"{self.base_url}/api/embed",
+            json={"model": model, "input": texts, **kwargs},
+            timeout=60,
+        )
+        if response.status_code == 404:
+            # Compatibility with older Ollama releases.
+            embeddings = []
+            for text in texts:
+                legacy = requests.post(
+                    f"{self.base_url}/api/embeddings",
+                    json={"model": model, "prompt": text},
+                    timeout=60,
+                )
+                legacy.raise_for_status()
+                embeddings.append(legacy.json().get("embedding", []))
+            return embeddings[0] if len(embeddings) == 1 else embeddings
+        response.raise_for_status()
+        embeddings = response.json().get("embeddings", [])
 
         return embeddings[0] if len(embeddings) == 1 else embeddings
 

@@ -6,6 +6,10 @@ __pycache__/
 *.egg-info/
 dist/
 release-dist/
+.release-dist*/
+.ci-dist/
+.ci-dist-verify*/
+.install-check*/
 build/
 .eggs/
 

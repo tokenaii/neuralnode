@@ -670,19 +670,25 @@ class OllamaEmbeddingProvider(BaseEmbeddingProvider):
         if isinstance(texts, str):
             texts = [texts]
 
-        embeddings = []
-        for text in texts:
-            response = requests.post(
-                f"{self.base_url}/api/embeddings",
-                json={
-                    "model": model or self.model,
-                    "prompt": text,
-                },
-                timeout=self.timeout,
-            )
-            response.raise_for_status()
-            data = response.json()
-            embeddings.append(data.get("embedding", []))
+        selected_model = model or self.model
+        response = requests.post(
+            f"{self.base_url}/api/embed",
+            json={"model": selected_model, "input": texts, **kwargs},
+            timeout=self.timeout,
+        )
+        if response.status_code == 404:
+            embeddings = []
+            for text in texts:
+                legacy = requests.post(
+                    f"{self.base_url}/api/embeddings",
+                    json={"model": selected_model, "prompt": text},
+                    timeout=self.timeout,
+                )
+                legacy.raise_for_status()
+                embeddings.append(legacy.json().get("embedding", []))
+            return embeddings[0] if len(embeddings) == 1 else embeddings
+        response.raise_for_status()
+        embeddings = response.json().get("embeddings", [])
 
         return embeddings[0] if len(embeddings) == 1 else embeddings
 

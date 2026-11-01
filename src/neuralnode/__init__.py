@@ -42,7 +42,7 @@ Quick Start::
     text = sr.listen()
 """
 
-__version__ = "2.2.8"
+__version__ = "2.2.9"
 __author__ = "NeuralNode Contributors"
 
 # ── Core types ────────────────────────────────────────────────────────────────
@@ -411,6 +411,8 @@ class NeuralNode:
         system_prompt: str = None,
         history: list = None,
         stream: bool = False,
+        thinking=None,
+        **kwargs,
     ):
         """Send a single message and get a response.
 
@@ -443,7 +445,14 @@ class NeuralNode:
                     messages.append(Message.assistant(content))
 
         messages.append(Message.user(message))
-        response = self._llm.chat(messages, stream=stream)
+        provider_kwargs = {
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
+            **kwargs,
+        }
+        if thinking is not None:
+            provider_kwargs["thinking"] = thinking
+        response = self._llm.chat(messages, stream=stream, **provider_kwargs)
 
         if stream:
             return (chunk.content for chunk in ensure_streaming_chunks(response))
