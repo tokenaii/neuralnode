@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="https://raw.githubusercontent.com/tokenaillc/neuralnode/v2.2.8/media/neuralnode.png" alt="NeuralNode — Connect models. Build AI." width="720">
+    <img src="https://raw.githubusercontent.com/tokenaillc/neuralnode/v2.2.9/media/neuralnode.png" alt="NeuralNode — Connect models. Build AI." width="720">
 </p>
 
 <p align="center">
@@ -11,12 +11,41 @@
 
 <p align="center"><strong>Connect models. Build AI.</strong></p>
 
-<p align="center">NeuralNode <code>v2.2.8</code></p>
+<p align="center">NeuralNode <code>v2.2.9</code></p>
 
 NeuralNode is a Python framework for connecting cloud and local AI models to
 one consistent interface. Build applications with model providers, agents,
 tools, memory, RAG, embeddings, vector stores, and integrations without
 rewriting your application around a single provider.
+
+## What's New in 2.2.9
+
+NeuralNode 2.2.9 focuses on reliable local-model runtimes, safer gateway
+integration, and a cleaner maintained core.
+
+- Removed the deprecated WhatsApp/Twilio integration and its legacy gateway
+  artifacts.
+- Upgraded Ollama to the native `/api/chat` protocol with role-preserving
+  messages, streaming, structured output, and tool calls.
+- Added native Ollama reasoning control with `thinking=True` or
+  `thinking=False`, with reasoning traces preserved in response metadata.
+- Updated Ollama embeddings to the batch `/api/embed` endpoint with a legacy
+  compatibility fallback.
+- Improved OpenClaw configuration, loopback-only binding, token
+  authentication, OpenAI-compatible chat completions, and non-streaming
+  provider fallback behavior.
+- Validated the NeuralNode → OpenClaw → local Qwen/llama.cpp workflow on AWS.
+- Added release-readiness validation for wheels, source distributions, CI,
+  metadata, and supported Python versions.
+
+For the complete release record, see [CHANGELOG.md](CHANGELOG.md).
+
+## Coming Soon Models
+
+The following models are coming soon to NeuralNode:
+
+- `replica-preview-0.6B` — TTS model.
+- `horus-cyber-nano-1.2` — Text model with vision capabilities.
 
 ## What's new in 2.2.8
 
@@ -41,8 +70,6 @@ blocks while making the public release safer to build and publish.
   access and test coverage that does not require optional HTTP test packages.
 - Hardened the release pipeline with source and wheel build validation,
   isolated build output, and trusted publishing to PyPI through GitHub Actions.
-
-For the complete release record, see [CHANGELOG.md](CHANGELOG.md).
 
 ## Why NeuralNode?
 
