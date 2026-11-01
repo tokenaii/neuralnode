@@ -260,16 +260,6 @@ except ImportError:
     _SLACK_AVAILABLE = False
 
 try:
-    from .integrations.whatsapp import (
-        TwilioWhatsAppBot,
-        create_twilio_whatsapp_bot,
-    )
-
-    _WHATSAPP_AVAILABLE = True
-except ImportError:
-    _WHATSAPP_AVAILABLE = False
-
-try:
     from .integrations.openclaw import (
         OpenClawManager,
         OpenClawServer,
@@ -850,11 +840,6 @@ if _TURBOQUANT_AVAILABLE:
     __all__ += ["TurboQuant", "TurboQuantEngine", "TurboQuantConfig"]
 if _THINKING_AVAILABLE:
     __all__ += ["ThinkingMode", "ThinkingResponse", "enable_thinking"]
-if _WHATSAPP_AVAILABLE:
-    __all__ += [
-        "TwilioWhatsAppBot",
-        "create_twilio_whatsapp_bot",
-    ]
 if _OPENCLAW_AVAILABLE:
     __all__ += [
         "OpenClawManager",

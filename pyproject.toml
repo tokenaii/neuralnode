@@ -169,7 +169,6 @@ telegram = [
 ]
 discord = ["discord.py>=2.3.0"]
 slack = ["slack-sdk>=3.21.0"]
-whatsapp = ["twilio>=9.0.0"]
 openclaw = [
     "fastapi>=0.110.0",
     "uvicorn>=0.27.0",
