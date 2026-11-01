@@ -48,9 +48,6 @@ execution, multimodal workflows, integrations, and reproducible packaging.
 - Aligned Horus and OpenClaw integrations with the current public interfaces.
 - Secured the OpenClaw local API behavior.
 - Added test paths that do not require optional OpenClaw HTTP test packages.
-- Corrected Horus Cyber Nano environment-variable names and documented the
-  hosted API endpoint configuration.
-
 ### Release engineering
 
 - Added source distribution and wheel build validation in CI.
