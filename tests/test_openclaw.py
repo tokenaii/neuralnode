@@ -1,12 +1,64 @@
+import asyncio
+import json
 import sys
 import unittest
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
-
-from fastapi.testclient import TestClient
 
 sys.path.insert(0, "src")
 
 from neuralnode.integrations.openclaw import OpenClawClient, OpenClawServer
+
+
+def _request_asgi(app, method, path, *, headers=None, body=None):
+    request_body = json.dumps(body).encode() if body is not None else b""
+    normalized_headers = dict(headers or {})
+    if body is not None and not any(key.lower() == "content-type" for key in normalized_headers):
+        normalized_headers["Content-Type"] = "application/json"
+    request_headers = [
+        (key.lower().encode(), value.encode()) for key, value in normalized_headers.items()
+    ]
+    sent = []
+    received = False
+
+    async def receive():
+        nonlocal received
+        if received:
+            return {"type": "http.disconnect"}
+        received = True
+        return {"type": "http.request", "body": request_body, "more_body": False}
+
+    async def send(message):
+        sent.append(message)
+
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0"},
+        "http_version": "1.1",
+        "method": method,
+        "scheme": "http",
+        "path": path,
+        "raw_path": path.encode(),
+        "query_string": b"",
+        "root_path": "",
+        "headers": request_headers,
+        "client": ("127.0.0.1", 12345),
+        "server": ("testserver", 80),
+    }
+    asyncio.run(app(scope, receive, send))
+    start = next(message for message in sent if message["type"] == "http.response.start")
+    response_headers = {key.decode(): value.decode() for key, value in start.get("headers", [])}
+    response_body = b"".join(
+        message.get("body", b"") for message in sent if message["type"] == "http.response.body"
+    ).decode()
+    return SimpleNamespace(
+        status_code=start["status"],
+        headers=response_headers,
+        text=response_body,
+        json=lambda: json.loads(response_body),
+    )
+
+
 import neuralnode as nn
 
 
@@ -98,22 +150,26 @@ class TestOpenClaw(unittest.TestCase):
                 return "safe response"
 
         server = OpenClawServer(node=MockNode(), host="0.0.0.0", api_key="server-token")
-        client = TestClient(server.app)
-
-        self.assertEqual(client.get("/v1/models").status_code, 401)
+        self.assertEqual(_request_asgi(server.app, "GET", "/v1/models").status_code, 401)
         self.assertEqual(
-            client.post(
+            _request_asgi(
+                server.app,
+                "POST",
                 "/v1/chat/completions",
-                json={"model": "test-model", "messages": [{"role": "user", "content": "Hi"}]},
+                body={"model": "test-model", "messages": [{"role": "user", "content": "Hi"}]},
             ).status_code,
             401,
         )
         headers = {"Authorization": "Bearer server-token"}
-        self.assertEqual(client.get("/v1/models", headers=headers).status_code, 200)
-        response = client.post(
+        self.assertEqual(
+            _request_asgi(server.app, "GET", "/v1/models", headers=headers).status_code, 200
+        )
+        response = _request_asgi(
+            server.app,
+            "POST",
             "/v1/chat/completions",
             headers=headers,
-            json={"model": "test-model", "messages": [{"role": "user", "content": "Hi"}]},
+            body={"model": "test-model", "messages": [{"role": "user", "content": "Hi"}]},
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["choices"][0]["message"]["content"], "safe response")
@@ -122,15 +178,15 @@ class TestOpenClaw(unittest.TestCase):
         class MockNode:
             model = "test-model"
 
-        client = TestClient(OpenClawServer(node=MockNode()).app)
-        response = client.options(
+        response = _request_asgi(
+            OpenClawServer(node=MockNode()).app,
+            "OPTIONS",
             "/v1/models",
             headers={
                 "Origin": "https://attacker.example",
                 "Access-Control-Request-Method": "GET",
             },
         )
-
         self.assertNotEqual(
             response.headers.get("access-control-allow-origin"), "https://attacker.example"
         )
@@ -142,10 +198,11 @@ class TestOpenClaw(unittest.TestCase):
             def chat(self, **kwargs):
                 raise RuntimeError("provider secret response")
 
-        client = TestClient(OpenClawServer(node=MockNode()).app)
-        response = client.post(
+        response = _request_asgi(
+            OpenClawServer(node=MockNode()).app,
+            "POST",
             "/v1/chat/completions",
-            json={"model": "test-model", "messages": [{"role": "user", "content": "Hi"}]},
+            body={"model": "test-model", "messages": [{"role": "user", "content": "Hi"}]},
         )
 
         self.assertEqual(response.status_code, 500)
