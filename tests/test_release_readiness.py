@@ -8,8 +8,8 @@ class TestReleaseReadiness(unittest.TestCase):
     
     def test_version_bump(self):
         """Verify the official release version in the packages."""
-        self.assertEqual(nn.__version__, "2.2.9")
-        self.assertEqual(nn_short.__version__, "2.2.9")
+        self.assertEqual(nn.__version__, "2.2.10")
+        self.assertEqual(nn_short.__version__, "2.2.10")
 
     def test_provider_registration(self):
         """Verify key providers are registered in the registry."""

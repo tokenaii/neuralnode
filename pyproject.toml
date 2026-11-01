@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "neuralnode"
-version = "2.2.9"
+version = "2.2.10"
 description = "Connect models. Build AI. A Python framework for LLM providers, agents, memory, RAG, and tools."
 readme = "README.md"
 requires-python = ">=3.9"
