@@ -98,6 +98,23 @@ class TestHFHubHelpers(unittest.TestCase):
             [call.args[1] for call in download_file.call_args_list],
         )
 
+    @patch("neuralnode.providers.hfhub.repo_info", return_value={"private": True})
+    @patch("neuralnode.providers.hfhub.list_repo_files", return_value=["model.safetensors"])
+    @patch("neuralnode.providers.hfhub._download_file")
+    def test_download_repo_accepts_authenticated_private_repo(
+        self, download_file, _list_files, _repo_info
+    ):
+        def write_file(_repo_id, path, dest, _progress_callback=None):
+            output = dest / path
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text("fixture")
+            return output
+
+        download_file.side_effect = write_file
+        with tempfile.TemporaryDirectory() as cache:
+            model_dir = download_repo("org/private-model", cache_dir=cache)
+            self.assertTrue((model_dir / "model.safetensors").is_file())
+
     @patch("neuralnode.providers.hfhub.repo_info", return_value={"private": False})
     @patch("neuralnode.providers.hfhub.list_repo_files", return_value=["model.gguf"])
     @patch("neuralnode.providers.hfhub._download_file")
@@ -129,9 +146,39 @@ class TestHFHubHelpers(unittest.TestCase):
 
         get.assert_called_once_with(
             "https://huggingface.co/org/model/resolve/main/weights/model%20file.bin",
+            headers={"User-Agent": "NeuralNode-HFHub/1.0"},
             stream=True,
             timeout=60,
         )
+
+    @patch("neuralnode.providers.hfhub.requests.get")
+    def test_huggingface_token_authenticates_metadata_and_download(self, get):
+        metadata = MagicMock()
+        metadata.json.return_value = {"private": True}
+        listing = MagicMock()
+        listing.json.return_value = [{"type": "file", "path": "model.safetensors"}]
+        download = MagicMock()
+        download.headers = {"Content-Length": "7"}
+        download.iter_content.return_value = [b"fixture"]
+        download.__enter__.return_value = download
+        get.side_effect = [metadata, listing, download]
+
+        with patch.dict("os.environ", {"HF_TOKEN": "test-hf-token"}):
+            from neuralnode.providers.hfhub import list_repo_files, repo_info
+
+            self.assertTrue(repo_info("org/private-model")["private"])
+            self.assertEqual(list_repo_files("org/private-model"), ["model.safetensors"])
+            with tempfile.TemporaryDirectory() as cache:
+                _download_file("org/private-model", "model.safetensors", Path(cache))
+
+        for call in get.call_args_list:
+            self.assertEqual(
+                call.kwargs["headers"],
+                {
+                    "User-Agent": "NeuralNode-HFHub/1.0",
+                    "Authorization": "Bearer test-hf-token",
+                },
+            )
 
     def test_universal_local_provider_is_instantiable(self):
         with tempfile.TemporaryDirectory() as model_dir:

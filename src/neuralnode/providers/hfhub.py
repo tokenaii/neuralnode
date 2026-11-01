@@ -60,7 +60,7 @@ def _auth_headers(extra: Optional[Dict[str, str]] = None) -> Dict[str, str]:
 def repo_exists(repo_id: str) -> bool:
     """Return True if the HF repo is publicly available."""
     try:
-        r = requests.get(f"{HF_API}/models/{repo_id}", timeout=30)
+        r = requests.get(f"{HF_API}/models/{repo_id}", headers=_auth_headers(), timeout=30)
         return r.status_code == 200
     except Exception:
         return False
@@ -68,14 +68,14 @@ def repo_exists(repo_id: str) -> bool:
 
 def repo_info(repo_id: str) -> Dict[str, Any]:
     """Fetch basic repo metadata from HuggingFace."""
-    r = requests.get(f"{HF_API}/models/{repo_id}", timeout=30)
+    r = requests.get(f"{HF_API}/models/{repo_id}", headers=_auth_headers(), timeout=30)
     r.raise_for_status()
     return r.json()
 
 
 def list_repo_files(repo_id: str) -> List[str]:
     """List file paths inside a HF repo."""
-    r = requests.get(f"{HF_API}/models/{repo_id}/tree/main", timeout=30)
+    r = requests.get(f"{HF_API}/models/{repo_id}/tree/main", headers=_auth_headers(), timeout=30)
     r.raise_for_status()
     items = r.json()
     return [item["path"] for item in items if item.get("type") == "file"]
@@ -111,7 +111,7 @@ def _download_file(
     if out.exists() and out.stat().st_size > 0:
         return out
     url = f"{HF_RESOLVE}/{quote(repo_id, safe='/')}/resolve/main/{quote(path, safe='/')}"
-    with requests.get(url, stream=True, timeout=60) as r:
+    with requests.get(url, headers=_auth_headers(), stream=True, timeout=60) as r:
         r.raise_for_status()
         total = int(r.headers.get("Content-Length", 0)) or None
         downloaded = 0
@@ -164,9 +164,6 @@ def download_repo(
         return _download_file(repo_id, file, dest, progress_callback)
 
     files = list_repo_files(repo_id)
-    if repo_info(repo_id).get("private"):
-        raise RuntimeError("Private/gated HF repos are not supported.")
-
     kind = infer_model_type(files)
     if kind == "gguf":
         weight_files = [f for f in files if f.lower().endswith(".gguf")]
