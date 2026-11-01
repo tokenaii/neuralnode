@@ -39,6 +39,27 @@ Set the provider API key before running:
 $env:GROQ_API_KEY="your-key"
 ```
 
+## Why use NeuralNode?
+
+NeuralNode helps developers build model-powered applications through one
+consistent Python interface for providers, local runtimes, agents, tools,
+embeddings, and retrieval workflows.
+
+- **Model interoperability** — Move between cloud APIs, Ollama, Transformers,
+  llama.cpp, vLLM, Horus, and other supported runtimes without rewriting the
+  application layer.
+- **Rapid prototyping** — Start with a small chat call, then add streaming,
+  vision, tools, memory, RAG, or speech as the application grows.
+- **Local and private execution** — Run compatible models locally through
+  Ollama and other local backends when data-control or offline workflows matter.
+- **Production building blocks** — Use normalized provider responses, agents,
+  tool calling, embeddings, vector stores, OpenClaw, and optional integrations.
+- **Provider flexibility** — Inspect the installed registry and switch models
+  or providers through configuration instead of coupling business logic to one
+  vendor.
+- **Optional by design** — Keep the base install lightweight and add only the
+  SDKs and heavy runtimes needed by the project.
+
 ## Do this → run this
 
 ### See supported providers
@@ -263,6 +284,19 @@ print("\\n".join(nn.get_available_providers()))
 
 Provider SDKs and credentials are optional. A provider in the registry does not mean its external service or model is included in this package.
 
+## Resources
+
+- [Detailed documentation](docs/documentation.md) — API concepts and guides.
+- [Changelog](CHANGELOG.md) — shipped changes and release history.
+- [Contributing guide](CONTRIBUTING.md) — development and contribution workflow.
+- [License](LICENSE) — TokenAI Source-Available License v1.0.
+- [Security policy](https://github.com/tokenaillc/neuralnode/security) — report
+  security issues responsibly.
+- [PyPI package](https://pypi.org/project/neuralnode/) — installation and
+  published distributions.
+- [GitHub releases](https://github.com/tokenaillc/neuralnode/releases) — release
+  notes and source snapshots.
+
 ## What's new in 2.2.9
 
 - Removed the deprecated WhatsApp/Twilio integration and legacy gateway.
@@ -281,13 +315,6 @@ See [CHANGELOG.md](CHANGELOG.md) for the complete release history.
 - `horus-cyber-nano-1.2` — text model with vision capabilities.
 
 These are announced as coming soon and are not shipped weights in NeuralNode 2.2.9.
-
-## Documentation and project files
-
-- [Detailed documentation](docs/documentation.md)
-- [Changelog](CHANGELOG.md)
-- [License](LICENSE)
-- [Contributing guide](CONTRIBUTING.md)
 
 ## Support and security
 
