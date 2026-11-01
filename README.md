@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="media/neuralnode.png" alt="NeuralNode — Connect models. Build AI." width="720">
+    <img src="https://raw.githubusercontent.com/tokenaillc/neuralnode/v2.2.8/media/neuralnode.png" alt="NeuralNode — Connect models. Build AI." width="720">
 </p>
 
 <p align="center">
@@ -17,6 +17,34 @@ NeuralNode is a Python framework for connecting cloud and local AI models to
 one consistent interface. Build applications with model providers, agents,
 tools, memory, RAG, embeddings, vector stores, and integrations without
 rewriting your application around a single provider.
+
+## What's new in 2.2.8
+
+NeuralNode 2.2.8 expands the framework's local-model and multimodal building
+blocks while making the public release safer to build and publish.
+
+- Added Hugging Face authentication support for public, private, and gated
+  model repositories through the `HF_TOKEN` environment variable or an
+  explicit token argument.
+- Added local Hugging Face speech adapters for speech-to-text and text-to-speech,
+  including lazy loading, automatic CPU/CUDA selection, configurable model IDs,
+  language handling, and WAV output.
+- Added a sequential `VoiceAgent` workflow that connects audio transcription,
+  an agent turn, and speech synthesis for file-based and push-to-talk use cases.
+- Added local vision-language input and Diffusers-compatible text-to-image
+  generation through dedicated Hugging Face model loaders.
+- Improved Horus model loading, provider identity, deterministic generation,
+  optional runtime imports, and model repository download behavior.
+- Improved provider-backed agent tool calling, including textual actions and
+  tool-result handling.
+- Added and aligned OpenClaw integration behavior, including safer local API
+  access and test coverage that does not require optional HTTP test packages.
+- Corrected Horus Cyber Nano environment-variable names and documented the
+  hosted API configuration.
+- Hardened the release pipeline with source and wheel build validation,
+  isolated build output, and trusted publishing to PyPI through GitHub Actions.
+
+For the complete release record, see [CHANGELOG.md](CHANGELOG.md).
 
 ## Why NeuralNode?
 

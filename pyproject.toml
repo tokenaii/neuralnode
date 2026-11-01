@@ -251,11 +251,9 @@ exclude = [
     "/.tmp_*",
     "/actionlint.zip",
     "/actionlint_bin",
-    "/deployment",
     "/dist",
     "/dist_*",
     "/outputs",
-    "/temp_header.gguf",
     "**/__pycache__/**",
     "**/*.pyc",
 ]
